@@ -4,7 +4,13 @@ import BluetoothClassic, {
   type BluetoothDevice,
   type BluetoothEventSubscription,
 } from "react-native-bluetooth-classic";
-import { fixLabel, parseGgaSentence, type GgaFix } from "@/lib/gps/nmea";
+import {
+  fixLabel,
+  parseGgaSentence,
+  parseGsaSentence,
+  type GgaFix,
+  type GsaDop,
+} from "@/lib/gps/nmea";
 import { ensureBluetoothConnectPermission } from "@/utils/bluetoothPermisisons";
 
 export default function ConnectionSetup() {
@@ -12,6 +18,7 @@ export default function ConnectionSetup() {
   const [status, setStatus] = useState("Not connected");
   const [latestLine, setLatestLine] = useState("");
   const [latestFix, setLatestFix] = useState<GgaFix | null>(null);
+  const [gsaDop, setGsaDop] = useState<GsaDop | null>(null);
   const connection = useRef<BluetoothDevice | null>(null);
   const listener = useRef<BluetoothEventSubscription | null>(null);
 
@@ -53,6 +60,9 @@ export default function ConnectionSetup() {
           setLatestLine(sentence);
           const fix = parseGgaSentence(sentence);
           if (fix) setLatestFix(fix);
+
+          const dop = parseGsaSentence(sentence);
+          if (dop) setGsaDop(dop);
         }
       }); //?
       setStatus("Connected to " + device.name);
@@ -109,8 +119,8 @@ export default function ConnectionSetup() {
           <Text>Altitude (MSL): {latestFix.altitude?.toFixed(3) ?? "—"} m</Text>
           <Text>Satellites: {latestFix.satellites ?? "—"}</Text>
           <Text>HDOP: {latestFix.hdop ?? "—"}</Text>
-          <Text>VDOP: {latestFix.vdop ?? "—"}</Text>
-          <Text>PDOP: {latestFix.pdop ?? "—"}</Text>
+          <Text>VDOP: {gsaDop?.vdop ?? "—"}</Text>
+          <Text>PDOP: {gsaDop?.pdop ?? "—"}</Text>
           <Text>UTC: {latestFix.utcTime ?? "—"}</Text>
         </View>
       )}

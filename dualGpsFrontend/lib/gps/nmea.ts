@@ -8,14 +8,44 @@ export type GgaFix = {
   altitude?: number;
   satellites?: number;
   hdop?: number;
-  vdop?: number;
+};
+
+export type GsaDop = {
+  receivedAt: number;
   pdop?: number;
+  hdop?: number;
+  vdop?: number;
 };
 
 function numberOrUndefined(value: string): number | undefined {
   if (!value) return undefined;
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
+}
+
+function validatedFields(sentence: string): string[] | null {
+  const trimmed = sentence.trim();
+  if (
+    trimmed.length < 9 ||
+    trimmed.length > 1024 ||
+    !/^\$[A-Z0-9]{5},/.test(trimmed)
+  )
+    return null;
+
+  const star = trimmed.lastIndexOf("*");
+  if (star < 0 || !/^[0-9A-Fa-f]{2}$/.test(trimmed.slice(star + 1))) {
+    return null;
+  }
+
+  let checksum = 0;
+  for (let i = 1; i < star; i++) {
+    const code = trimmed.charCodeAt(i);
+    if (code < 32 || code > 126) return null;
+    checksum ^= code;
+  }
+
+  if (checksum !== parseInt(trimmed.slice(star + 1), 16)) return null;
+  return trimmed.slice(1, star).split(",");
 }
 
 function parseCoordinate(
@@ -51,29 +81,11 @@ export function parseGgaSentence(
   receivedAt = Date.now(),
 ): GgaFix | null {
   const trimmed = sentence.trim();
-  if (
-    trimmed.length > 1024 ||
-    trimmed.length < 9 ||
-    !/^\$[A-Z0-9]{2}GGA,/.test(trimmed)
-  ) {
-    return null;
-  }
+  const fields = validatedFields(trimmed);
 
-  const star = trimmed.lastIndexOf("*");
-  if (star < 0 || !/^[0-9A-Fa-f]{2}$/.test(trimmed.slice(star + 1))) {
-    return null;
-  }
+  if (!fields || !/^[A-Z0-9]{2}GGA$/.test(fields[0])) return null;
+  const quality = Number(fields[6]); //
 
-  let checksum = 0;
-  for (let index = 1; index < star; index += 1) {
-    const code = trimmed.charCodeAt(index);
-    if (code < 32 || code > 126) return null;
-    checksum ^= code;
-  }
-  if (checksum !== parseInt(trimmed.slice(star + 1), 16)) return null;
-
-  const fields = trimmed.slice(1, star).split(",");
-  const quality = Number(fields[6]);
   if (
     fields.length < 10 ||
     !/^[0-8]$/.test(fields[6]) ||
@@ -84,8 +96,6 @@ export function parseGgaSentence(
 
   const satellites = numberOrUndefined(fields[7]);
   const hdop = numberOrUndefined(fields[8]);
-  const vdop = numberOrUndefined(fields[16]);
-  const pdop = numberOrUndefined(fields[15]);
   const fix: GgaFix = {
     sentence: trimmed,
     receivedAt,
@@ -98,8 +108,6 @@ export function parseGgaSentence(
         ? satellites
         : undefined,
     hdop: hdop !== undefined && hdop >= 0 ? hdop : undefined,
-    vdop: vdop !== undefined && vdop >= 0 ? vdop : undefined,
-    pdop: pdop !== undefined && pdop >= 0 ? pdop : undefined,
   };
 
   if (quality === 0) return fix;
@@ -114,6 +122,29 @@ export function parseGgaSentence(
     latitude,
     longitude,
     altitude: fields[10] === "M" ? altitude : undefined,
+  };
+}
+
+export function parseGsaSentence(
+  sentence: string,
+  receivedAt = Date.now(),
+): GsaDop | null {
+  const fields = validatedFields(sentence);
+  if (!fields || !/^[A-Z0-9]{2}GSA$/.test(fields[0]) || fields.length < 18)
+    return null;
+
+  const dop = (value: string): number | undefined => {
+    const n = numberOrUndefined(value);
+    return n !== undefined && n >= 0 ? n : undefined;
+  };
+
+  if (fields[2] === "1") return { receivedAt };
+
+  return {
+    receivedAt,
+    pdop: dop(fields[15]),
+    hdop: dop(fields[16]),
+    vdop: dop(fields[17]),
   };
 }
 
