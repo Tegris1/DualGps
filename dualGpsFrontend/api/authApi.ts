@@ -1,3 +1,6 @@
+import * as Device from "expo-device";
+import { Platform } from "react-native";
+
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export type LoginRequest = {
@@ -48,13 +51,15 @@ export class AuthApiError extends Error {
 }
 
 function getApiBaseUrl(): string {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const isAndroidEmulator = Platform.OS === "android" && !Device.isDevice;
+  const apiUrl = (
+    isAndroidEmulator
+      ? process.env.EXPO_PUBLIC_API_URL_EMULATOR
+      : process.env.EXPO_PUBLIC_API_URL_DEVICE
+  )?.trim();
 
   if (!apiUrl) {
-    throw new AuthApiError(
-      "EXPO_PUBLIC_API_URL is not configured. Add it to your .env file.",
-      null,
-    );
+    throw new AuthApiError("API URL is not configured in .env.", null);
   }
 
   return apiUrl.replace(/\/+$/, "");
