@@ -7,6 +7,14 @@ import BluetoothClassic, {
 import type { ConsoleEntry } from "@/components/settings/types";
 import { ensureBluetoothConnectPermission } from "@/utils/bluetoothPermisisons";
 
+import { parseGgaSentence } from "@/lib/gps/nmea";
+import { NtripConnection } from "@/lib/gps/ntrip-connection";
+import type { NtripSettings } from "@/lib/gps/ntrip-protocol";
+import {
+  configureTopcon,
+  type ReceiverModel,
+} from "@/lib/gps/receiver-profiles";
+
 function currentTime() {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -30,6 +38,9 @@ export function useBluetoothSerial() {
   const connectionRef = useRef<BluetoothDevice | null>(null);
   const dataListenerRef = useRef<BluetoothEventSubscription | null>(null);
   const consoleIdRef = useRef(0);
+
+  const ntripRef = useRef<NtripConnection | null>(null);
+  const ntripStartingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -77,8 +88,7 @@ export function useBluetoothSerial() {
       const pairedDevices = await BluetoothClassic.getBondedDevices();
       setDevices(pairedDevices);
       setSelectedAddress((current) =>
-        current &&
-        pairedDevices.some((device) => device.address === current)
+        current && pairedDevices.some((device) => device.address === current)
           ? current
           : (pairedDevices[0]?.address ?? null),
       );
@@ -91,9 +101,7 @@ export function useBluetoothSerial() {
           : "No paired devices found. Pair a receiver in system settings first.",
       );
     } catch (error) {
-      setConnectionMessage(
-        "Could not read paired devices: " + String(error),
-      );
+      setConnectionMessage("Could not read paired devices: " + String(error));
     } finally {
       setIsRefreshing(false);
     }
@@ -169,6 +177,4 @@ export function useBluetoothSerial() {
   };
 }
 
-export type BluetoothSerialController = ReturnType<
-  typeof useBluetoothSerial
->;
+export type BluetoothSerialController = ReturnType<typeof useBluetoothSerial>;
