@@ -32,10 +32,13 @@ export function BluetoothSettings({
     disconnect,
     isConnecting,
     isRefreshing,
+    ntripStatus,
+    receiverModel,
     refreshDevices,
     selectedAddress,
     selectedDevice,
     selectDevice,
+    selectReceiverModel,
   } = bluetooth;
 
   return (
@@ -48,6 +51,52 @@ export function BluetoothSettings({
         title="Bluetooth receiver"
         description="Select a paired GNSS receiver to start a serial connection."
       />
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Receiver profile</Text>
+        <Text style={styles.cardCaption}>
+          Select the receiver before connecting so its serial port is configured
+          correctly.
+        </Text>
+        <View style={styles.profileRow}>
+          {(["topcon", "kolida"] as const).map((model) => {
+            const selected = receiverModel === model;
+            return (
+              <Pressable
+                disabled={!!connectedDevice}
+                key={model}
+                onPress={() => selectReceiverModel(model)}
+                style={({ pressed }) => [
+                  styles.profileButton,
+                  selected && styles.profileButtonSelected,
+                  connectedDevice && styles.buttonDisabled,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <MaterialIcons
+                  name={selected ? "radio-button-checked" : "radio-button-unchecked"}
+                  size={20}
+                  color={selected ? "#0284C7" : "#64748B"}
+                />
+                <Text
+                  style={[
+                    styles.profileButtonText,
+                    selected && styles.profileButtonTextSelected,
+                  ]}
+                >
+                  {model === "topcon" ? "Topcon" : "Kolida"}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {receiverModel === "kolida" && (
+          <Text style={styles.profileHint}>
+            Kolida automatic setup is not implemented; configure NMEA output and
+            RTCM 3 input on the receiver first.
+          </Text>
+        )}
+      </View>
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
@@ -142,6 +191,17 @@ export function BluetoothSettings({
         message={connectionMessage}
       />
 
+      {!!connectedDevice && (
+        <InfoBanner
+          positive={ntripStatus.state === "streaming"}
+          message={
+            ntripStatus.state === "streaming"
+              ? `${ntripStatus.message ?? "NTRIP corrections active"} ${ntripStatus.rtcm.validFrames} valid RTCM frames, ${ntripStatus.bytesSentToReceiver} bytes forwarded.`
+              : (ntripStatus.message ?? "NTRIP is not connected.")
+          }
+        />
+      )}
+
       {connectedDevice ? (
         <View style={styles.actionRow}>
           <ActionButton
@@ -158,7 +218,7 @@ export function BluetoothSettings({
         </View>
       ) : (
         <PrimaryButton
-          disabled={!selectedDevice || isConnecting}
+          disabled={!selectedDevice || !receiverModel || isConnecting}
           loading={isConnecting}
           icon="bluetooth-connected"
           label={isConnecting ? "Connecting…" : "Connect selected device"}
