@@ -4,16 +4,35 @@ import BluetoothClassic, {
   type BluetoothEventSubscription,
 } from "react-native-bluetooth-classic";
 
-import type { ConsoleEntry } from "@/components/settings/types";
+import type { ConsoleEntry, EuposSettings } from "@/components/settings/types";
 import { ensureBluetoothConnectPermission } from "@/utils/bluetoothPermisisons";
 
-import { parseGgaSentence } from "@/lib/gps/nmea";
-import { NtripConnection } from "@/lib/gps/ntrip-connection";
+import {
+  parseGgaSentence,
+  parseGsaSentence,
+  type GgaFix,
+  type GsaDop,
+} from "@/lib/gps/nmea";
+import {
+  NtripConnection,
+  type NtripConnectionStatus,
+} from "@/lib/gps/ntrip-connection";
 import type { NtripSettings } from "@/lib/gps/ntrip-protocol";
 import {
   configureTopcon,
   type ReceiverModel,
 } from "@/lib/gps/receiver-profiles";
+
+const INITIAL_NTRIP_STATUS: NtripConnectionStatus = {
+  state: "idle",
+  message: "Waiting for a valid GGA position from the receiver.",
+  bytesReceived: 0,
+  bytesSentToReceiver: 0,
+  rtcm: { validFrames: 0, invalidFrames: 0 },
+};
+
+const INITIAL_NTRIP_RETRY_MS = 2_000;
+const MAX_NTRIP_RETRY_MS = 30_000;
 
 function currentTime() {
   return new Date().toLocaleTimeString([], {
@@ -23,7 +42,7 @@ function currentTime() {
   });
 }
 
-export function useBluetoothSerial() {
+export function useBluetoothSerial(euposSettings: EuposSettings) {
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [connectedDevice, setConnectedDevice] =
@@ -34,16 +53,59 @@ export function useBluetoothSerial() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
+  const [latestLine, setLatestLine] = useState("");
+  const [latestFix, setLatestFix] = useState<GgaFix | null>(null);
+  const [gsaDop, setGsaDop] = useState<GsaDop | null>(null);
+  const [receiverModel, setReceiverModel] = useState<ReceiverModel | null>(null);
+  const [ntripStatus, setNtripStatus] =
+    useState<NtripConnectionStatus>(INITIAL_NTRIP_STATUS);
 
   const connectionRef = useRef<BluetoothDevice | null>(null);
   const dataListenerRef = useRef<BluetoothEventSubscription | null>(null);
   const consoleIdRef = useRef(0);
+  const receiverReadyRef = useRef(false);
+  const latestUsableGgaRef = useRef<string | null>(null);
 
   const ntripRef = useRef<NtripConnection | null>(null);
   const ntripStartingRef = useRef(false);
+  const euposSettingsRef = useRef(euposSettings);
+  const nextNtripAttemptAtRef = useRef(0);
+  const ntripRetryDelayRef = useRef(INITIAL_NTRIP_RETRY_MS);
 
   useEffect(() => {
+    euposSettingsRef.current = euposSettings;
+    nextNtripAttemptAtRef.current = 0;
+    ntripRetryDelayRef.current = INITIAL_NTRIP_RETRY_MS;
+  }, [euposSettings]);
+
+  useEffect(() => {
+    const disconnectSubscription = BluetoothClassic.onDeviceDisconnected(
+      ({ device }) => {
+        if (connectionRef.current?.address !== device.address) return;
+
+        ntripRef.current?.stop(false);
+        ntripRef.current = null;
+        ntripStartingRef.current = false;
+        dataListenerRef.current?.remove();
+        dataListenerRef.current = null;
+        connectionRef.current = null;
+        receiverReadyRef.current = false;
+        latestUsableGgaRef.current = null;
+        setConnectedDevice(null);
+        setLatestFix(null);
+        setGsaDop(null);
+        setConnectionMessage("Bluetooth receiver disconnected unexpectedly.");
+        setNtripStatus({
+          ...INITIAL_NTRIP_STATUS,
+          state: "disconnected",
+          message: "NTRIP corrections stopped because Bluetooth disconnected.",
+        });
+      },
+    );
+
     return () => {
+      disconnectSubscription.remove();
+      ntripRef.current?.stop(false);
       dataListenerRef.current?.remove();
       void connectionRef.current?.disconnect().catch(() => undefined);
     };
@@ -63,6 +125,122 @@ export function useBluetoothSerial() {
 
     if (entries.length) {
       setConsoleEntries((current) => [...current, ...entries].slice(-200));
+    }
+  }
+
+  function currentNtripSettings(): NtripSettings | null {
+    const settings = euposSettingsRef.current;
+    const port = Number(settings.port);
+
+    if (
+      !settings.host.trim() ||
+      !settings.mountpoint.trim() ||
+      !settings.username.trim() ||
+      !Number.isInteger(port) ||
+      port < 1 ||
+      port > 65535
+    ) {
+      return null;
+    }
+
+    return {
+      host: settings.host,
+      mountpoint: settings.mountpoint,
+      password: settings.password,
+      port,
+      useTls: settings.useTls,
+      username: settings.username,
+    };
+  }
+
+  async function startNtrip(device: BluetoothDevice, gga: string) {
+    if (
+      ntripStartingRef.current ||
+      ntripRef.current?.isRunning() ||
+      Date.now() < nextNtripAttemptAtRef.current
+    ) {
+      return;
+    }
+
+    const settings = currentNtripSettings();
+    if (!settings) {
+      setNtripStatus({
+        ...INITIAL_NTRIP_STATUS,
+        state: "error",
+        message: "Complete and save the ASG-EUPOS settings to start NTRIP.",
+      });
+      return;
+    }
+
+    ntripStartingRef.current = true;
+    const connection = new NtripConnection({
+      onStatus: (status) => {
+        setNtripStatus(status);
+        if (status.state === "streaming") {
+          nextNtripAttemptAtRef.current = 0;
+          ntripRetryDelayRef.current = INITIAL_NTRIP_RETRY_MS;
+        }
+      },
+    });
+    ntripRef.current = connection;
+
+    try {
+      await connection.start(settings, device, gga);
+    } catch (error) {
+      if (ntripRef.current === connection) {
+        const delay = ntripRetryDelayRef.current;
+        nextNtripAttemptAtRef.current = Date.now() + delay;
+        ntripRetryDelayRef.current = Math.min(
+          delay * 2,
+          MAX_NTRIP_RETRY_MS,
+        );
+
+        if (!connection.isRunning()) {
+          setNtripStatus((current) => ({
+            ...current,
+            state: "error",
+            message:
+              current.state === "error"
+                ? current.message
+                : `Could not start NTRIP: ${String(error)}`,
+          }));
+        }
+      }
+    } finally {
+      ntripStartingRef.current = false;
+    }
+  }
+
+  function handleReceiverData(rawData: string, device: BluetoothDevice) {
+    addConsoleLines(rawData);
+
+    for (const line of rawData.split(/\r?\n/)) {
+      const sentence = line.trim();
+      if (!sentence) continue;
+
+      setLatestLine(sentence);
+      const dop = parseGsaSentence(sentence);
+      if (dop) setGsaDop(dop);
+
+      const fix = parseGgaSentence(sentence);
+      if (fix) setLatestFix(fix);
+      if (
+        !fix ||
+        fix.quality === 0 ||
+        fix.latitude === undefined ||
+        fix.longitude === undefined
+      ) {
+        continue;
+      }
+
+      latestUsableGgaRef.current = fix.sentence;
+      if (!receiverReadyRef.current) continue;
+
+      if (ntripRef.current?.isRunning()) {
+        ntripRef.current.updateGga(fix.sentence);
+      } else {
+        void startNtrip(device, fix.sentence);
+      }
     }
   }
 
@@ -108,27 +286,44 @@ export function useBluetoothSerial() {
   }
 
   async function disconnect() {
+    ntripRef.current?.stop();
+    ntripRef.current = null;
+    ntripStartingRef.current = false;
+    nextNtripAttemptAtRef.current = 0;
+    ntripRetryDelayRef.current = INITIAL_NTRIP_RETRY_MS;
     dataListenerRef.current?.remove();
     dataListenerRef.current = null;
 
     const device = connectionRef.current;
     connectionRef.current = null;
+    receiverReadyRef.current = false;
+    latestUsableGgaRef.current = null;
     setConnectedDevice(null);
+    setLatestFix(null);
+    setGsaDop(null);
 
     try {
       await device?.disconnect();
       setConnectionMessage("Device disconnected.");
+      setNtripStatus({
+        ...INITIAL_NTRIP_STATUS,
+        state: "disconnected",
+        message: "NTRIP corrections stopped.",
+      });
     } catch (error) {
       setConnectionMessage("Could not disconnect: " + String(error));
     }
   }
 
-  async function connectSelected() {
-    if (!selectedAddress || isConnecting) return;
-    if (connectionRef.current?.address === selectedAddress) return;
+  async function connectSelected(address = selectedAddress) {
+    if (!address || !receiverModel || isConnecting) return;
+    if (connectionRef.current?.address === address) return;
 
     setIsConnecting(true);
     setConnectionMessage("Connecting to receiver…");
+    receiverReadyRef.current = false;
+    latestUsableGgaRef.current = null;
+    let device: BluetoothDevice | null = null;
 
     try {
       if (!(await ensureBluetoothConnectPermission())) {
@@ -138,18 +333,37 @@ export function useBluetoothSerial() {
 
       if (connectionRef.current) await disconnect();
 
-      const device = await BluetoothClassic.connectToDevice(selectedAddress, {
+      const connectedDevice = await BluetoothClassic.connectToDevice(address, {
         delimiter: "\n",
       });
-      connectionRef.current = device;
-      dataListenerRef.current = device.onDataReceived(({ data }) =>
-        addConsoleLines(data),
+      device = connectedDevice;
+      connectionRef.current = connectedDevice;
+      dataListenerRef.current = connectedDevice.onDataReceived(({ data }) =>
+        handleReceiverData(data, connectedDevice),
       );
-      setConnectedDevice(device);
+
+      await configureTopcon(connectedDevice, receiverModel);
+      receiverReadyRef.current = true;
+      setConnectedDevice(connectedDevice);
+      setNtripStatus(INITIAL_NTRIP_STATUS);
       setConnectionMessage(
-        "Connected to " + (device.name ?? device.address) + ".",
+        "Connected to " +
+          (connectedDevice.name ?? connectedDevice.address) +
+          ".",
       );
+
+      if (latestUsableGgaRef.current) {
+        void startNtrip(connectedDevice, latestUsableGgaRef.current);
+      }
     } catch (error) {
+      ntripRef.current?.stop(false);
+      ntripRef.current = null;
+      dataListenerRef.current?.remove();
+      dataListenerRef.current = null;
+      connectionRef.current = null;
+      receiverReadyRef.current = false;
+      latestUsableGgaRef.current = null;
+      await device?.disconnect().catch(() => undefined);
       setConnectionMessage("Connection failed: " + String(error));
     } finally {
       setIsConnecting(false);
@@ -170,10 +384,16 @@ export function useBluetoothSerial() {
     disconnect,
     isConnecting,
     isRefreshing,
+    latestFix,
+    latestLine,
+    ntripStatus,
+    receiverModel,
     refreshDevices,
     selectedAddress,
     selectedDevice,
+    selectReceiverModel: setReceiverModel,
     selectDevice: setSelectedAddress,
+    gsaDop,
   };
 }
 

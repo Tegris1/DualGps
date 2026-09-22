@@ -11,14 +11,12 @@ import {
   styles,
   type SettingsSection,
 } from "@/components/settings";
-import { useBluetoothSerial } from "@/hooks/use-bluetooth-serial";
-import { useEuposSettings } from "@/hooks/use-eupos-settings";
+import { useGps } from "@/lib/gps-context";
 
 export default function SettingsScreen() {
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("bluetooth");
-  const bluetooth = useBluetoothSerial();
-  const eupos = useEuposSettings();
+  const { bluetooth, eupos } = useGps();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>

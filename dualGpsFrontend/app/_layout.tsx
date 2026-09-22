@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { GpsProvider } from "@/lib/gps-context";
 import {
   Stack,
   useNavigationContainerRef,
@@ -40,6 +41,16 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <GpsApp />
+    </AuthProvider>
+  );
+}
+
+function GpsApp() {
+  const { user } = useAuth();
+
+  return (
+    <GpsProvider key={user?.email ?? "signed-out"}>
       <RouteGuard>
         <Stack>
           <Stack.Screen
@@ -50,6 +61,6 @@ export default function RootLayout() {
           />
         </Stack>
       </RouteGuard>
-    </AuthProvider>
+    </GpsProvider>
   );
 }
