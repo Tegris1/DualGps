@@ -17,8 +17,7 @@ import { Rtcm3Inspector, type RtcmStats } from "./rtcm3-inspector";
 type TcpClient = ReturnType<typeof TcpSocket.createConnection>;
 
 const CONNECT_TIMEOUT_MS = 15_000;
-const GGA_INTERVAL_MS = 10_000;
-const GGA_STALE_AFTER_MS = 30_000;
+const GGA_INTERVAL_MS = 5_000;
 const MAX_HEADER_BYTES = 64 * 1024;
 const MAX_PENDING_BLUETOOTH_WRITES = 64;
 const RESUME_BLUETOOTH_WRITES_AT = 16;
@@ -250,7 +249,7 @@ export class NtripConnection {
         this.headerBuffer.subarray(headerEnd.payloadOffset),
       );
       this.headerBuffer = Buffer.alloc(0);
-      this.startGgaTimer(generation);
+      // this.startGgaTimer(generation);
       this.sendLatestGga(generation);
       this.emitStatus("streaming", "Receiving NTRIP corrections.", true);
       started = true;
@@ -329,23 +328,6 @@ export class NtripConnection {
       });
 
     this.emitStatus("streaming", "Receiving NTRIP corrections.");
-  }
-
-  private startGgaTimer(generation: number): void {
-    this.clearGgaTimer();
-    this.ggaTimer = setInterval(() => {
-      if (!this.isCurrent(generation)) return;
-
-      if (Date.now() - this.latestGgaAt > GGA_STALE_AFTER_MS) {
-        this.fail(
-          new Error("No fresh GGA position received from the GNSS receiver"),
-          generation,
-        );
-        return;
-      }
-
-      this.sendLatestGga(generation);
-    }, GGA_INTERVAL_MS);
   }
 
   private sendLatestGga(generation: number): void {
