@@ -7,6 +7,8 @@ import type { BluetoothSerialController } from "@/hooks/use-bluetooth-serial";
 import { SectionIntro } from "./settings-controls";
 import { styles } from "./styles";
 
+import { fixLabel } from "@/lib/gps/nmea";
+
 export function DebugConsole({
   bluetooth,
   onSelectDevice,
@@ -21,12 +23,58 @@ export function DebugConsole({
     connectSelected,
     consoleEntries,
     disconnect,
+    gsaDop,
     isConnecting,
+    latestFix,
+    latestLine,
+    ntripStatus,
     selectedDevice,
   } = bluetooth;
 
   return (
     <View style={styles.debugContent}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>GNSS solution</Text>
+        <Text style={styles.cardCaption}>
+          Position and fix quality reported by the receiver
+        </Text>
+
+        <View style={{ gap: 7, marginTop: 14 }}>
+          <Text>
+            Fix:{" "}
+            {latestFix
+              ? `${fixLabel(latestFix.quality)} (${latestFix.quality})`
+              : "Waiting for GGA"}
+          </Text>
+
+          <Text>
+            Latitude:{" "}
+            {latestFix?.latitude !== undefined
+              ? `${latestFix.latitude.toFixed(8)}°`
+              : "—"}
+          </Text>
+
+          <Text>
+            Longitude:{" "}
+            {latestFix?.longitude !== undefined
+              ? `${latestFix.longitude.toFixed(8)}°`
+              : "—"}
+          </Text>
+
+          <Text>
+            Altitude:{" "}
+            {latestFix?.altitude !== undefined
+              ? `${latestFix.altitude.toFixed(3)} m`
+              : "—"}
+          </Text>
+
+          <Text>Satellites: {latestFix?.satellites ?? "—"}</Text>
+          <Text>HDOP: {latestFix?.hdop ?? gsaDop?.hdop ?? "—"}</Text>
+          <Text>VDOP: {gsaDop?.vdop ?? "—"}</Text>
+          <Text>PDOP: {gsaDop?.pdop ?? "—"}</Text>
+          <Text>Last sentence: {latestLine || "—"}</Text>
+        </View>
+      </View>
       <SectionIntro
         icon="terminal"
         title="Serial monitor"
@@ -45,9 +93,9 @@ export function DebugConsole({
             <Text style={styles.debugDeviceLabel}>DATA SOURCE</Text>
             <Text style={styles.debugDeviceName} numberOfLines={1}>
               {connectedDevice
-                ? connectedDevice.name ?? connectedDevice.address
+                ? (connectedDevice.name ?? connectedDevice.address)
                 : selectedDevice
-                  ? selectedDevice.name ?? selectedDevice.address
+                  ? (selectedDevice.name ?? selectedDevice.address)
                   : "No device selected"}
             </Text>
           </View>
@@ -75,11 +123,7 @@ export function DebugConsole({
 
       {!selectedDevice && !connectedDevice && (
         <Pressable onPress={onSelectDevice} style={styles.selectDevicePrompt}>
-          <MaterialIcons
-            name="bluetooth-searching"
-            size={20}
-            color="#0284C7"
-          />
+          <MaterialIcons name="bluetooth-searching" size={20} color="#0284C7" />
           <Text style={styles.selectDevicePromptText}>
             Select a Bluetooth device first
           </Text>

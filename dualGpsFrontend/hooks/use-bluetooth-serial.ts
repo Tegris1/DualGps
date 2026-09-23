@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { NativeModules } from "react-native";
 import BluetoothClassic, {
   type BluetoothDevice,
   type BluetoothEventSubscription,
@@ -33,6 +34,10 @@ const INITIAL_NTRIP_STATUS: NtripConnectionStatus = {
 
 const INITIAL_NTRIP_RETRY_MS = 2_000;
 const MAX_NTRIP_RETRY_MS = 30_000;
+const BLUETOOTH_MODULE_UNAVAILABLE =
+  "Bluetooth Classic is unavailable on this device.";
+
+const hasBluetoothNativeModule = NativeModules.RNBluetoothClassic != null;
 
 function currentTime() {
   return new Date().toLocaleTimeString([], {
@@ -56,7 +61,9 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   const [latestLine, setLatestLine] = useState("");
   const [latestFix, setLatestFix] = useState<GgaFix | null>(null);
   const [gsaDop, setGsaDop] = useState<GsaDop | null>(null);
-  const [receiverModel, setReceiverModel] = useState<ReceiverModel | null>(null);
+  const [receiverModel, setReceiverModel] = useState<ReceiverModel | null>(
+    null,
+  );
   const [ntripStatus, setNtripStatus] =
     useState<NtripConnectionStatus>(INITIAL_NTRIP_STATUS);
 
@@ -79,32 +86,47 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   }, [euposSettings]);
 
   useEffect(() => {
-    const disconnectSubscription = BluetoothClassic.onDeviceDisconnected(
-      ({ device }) => {
-        if (connectionRef.current?.address !== device.address) return;
+    let disconnectSubscription: BluetoothEventSubscription | null = null;
 
-        ntripRef.current?.stop(false);
-        ntripRef.current = null;
-        ntripStartingRef.current = false;
-        dataListenerRef.current?.remove();
-        dataListenerRef.current = null;
-        connectionRef.current = null;
-        receiverReadyRef.current = false;
-        latestUsableGgaRef.current = null;
-        setConnectedDevice(null);
-        setLatestFix(null);
-        setGsaDop(null);
-        setConnectionMessage("Bluetooth receiver disconnected unexpectedly.");
-        setNtripStatus({
-          ...INITIAL_NTRIP_STATUS,
-          state: "disconnected",
-          message: "NTRIP corrections stopped because Bluetooth disconnected.",
-        });
-      },
-    );
+    if (!hasBluetoothNativeModule) {
+      setConnectionMessage(BLUETOOTH_MODULE_UNAVAILABLE);
+    } else {
+      try {
+        disconnectSubscription = BluetoothClassic.onDeviceDisconnected(
+          ({ device }) => {
+            if (connectionRef.current?.address !== device.address) return;
+
+            ntripRef.current?.stop(false);
+            ntripRef.current = null;
+            ntripStartingRef.current = false;
+            dataListenerRef.current?.remove();
+            dataListenerRef.current = null;
+            connectionRef.current = null;
+            receiverReadyRef.current = false;
+            latestUsableGgaRef.current = null;
+            setConnectedDevice(null);
+            setLatestFix(null);
+            setGsaDop(null);
+            setConnectionMessage(
+              "Bluetooth receiver disconnected unexpectedly.",
+            );
+            setNtripStatus({
+              ...INITIAL_NTRIP_STATUS,
+              state: "disconnected",
+              message:
+                "NTRIP corrections stopped because Bluetooth disconnected.",
+            });
+          },
+        );
+      } catch (error) {
+        setConnectionMessage(
+          `${BLUETOOTH_MODULE_UNAVAILABLE} ${String(error)}`,
+        );
+      }
+    }
 
     return () => {
-      disconnectSubscription.remove();
+      disconnectSubscription?.remove();
       ntripRef.current?.stop(false);
       dataListenerRef.current?.remove();
       void connectionRef.current?.disconnect().catch(() => undefined);
@@ -190,10 +212,7 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
       if (ntripRef.current === connection) {
         const delay = ntripRetryDelayRef.current;
         nextNtripAttemptAtRef.current = Date.now() + delay;
-        ntripRetryDelayRef.current = Math.min(
-          delay * 2,
-          MAX_NTRIP_RETRY_MS,
-        );
+        ntripRetryDelayRef.current = Math.min(delay * 2, MAX_NTRIP_RETRY_MS);
 
         if (!connection.isRunning()) {
           setNtripStatus((current) => ({
@@ -245,6 +264,11 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   }
 
   async function refreshDevices() {
+    if (!hasBluetoothNativeModule) {
+      setConnectionMessage(BLUETOOTH_MODULE_UNAVAILABLE);
+      return;
+    }
+
     setIsRefreshing(true);
     setConnectionMessage("Checking Bluetooth…");
 
@@ -316,6 +340,11 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   }
 
   async function connectSelected(address = selectedAddress) {
+    if (!hasBluetoothNativeModule) {
+      setConnectionMessage(BLUETOOTH_MODULE_UNAVAILABLE);
+      return;
+    }
+
     if (!address || !receiverModel || isConnecting) return;
     if (connectionRef.current?.address === address) return;
 

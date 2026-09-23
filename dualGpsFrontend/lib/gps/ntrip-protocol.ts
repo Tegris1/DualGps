@@ -118,7 +118,7 @@ export function ntripStatusMessage(statusLine: string): string {
   }
 
   if (/^SOURCETABLE/i.test(statusLine)) {
-    return "The caster returned its source table; check the mountpoint";
+    return "The caster returned its source table, wrong mountpoint";
   }
 
   if (!statusLine.trim()) {
