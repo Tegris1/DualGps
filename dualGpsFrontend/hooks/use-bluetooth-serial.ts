@@ -233,6 +233,31 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   function handleReceiverData(rawData: string, device: BluetoothDevice) {
     addConsoleLines(rawData);
 
+    // const fix = parseGgaSentence(sentence);
+    // if (!fix) continue;
+
+    // setLatestFix(fix);
+
+    // if (receiverReadyRef.current && ntripRef.current?.isRunning()) {
+    //   ntripRef.current.updateGga(fix.sentence);
+    // }
+
+    // if (
+    //   fix.quality === 0 ||
+    //   fix.latitude === undefined ||
+    //   fix.longitude === undefined
+    // ) {
+    //   continue;
+    // }
+
+    // latestUsableGgaRef.current = fix.sentence;
+
+    // if (!receiverReadyRef.current) continue;
+
+    // if (!ntripRef.current?.isRunning()) {
+    //   void startNtrip(device, fix.sentence);
+    // }
+
     for (const line of rawData.split(/\r?\n/)) {
       const sentence = line.trim();
       if (!sentence) continue;

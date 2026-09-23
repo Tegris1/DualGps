@@ -167,7 +167,9 @@ export class NtripConnection {
         });
 
         socket.on("error", fail);
-        socket.on("timeout", () => fail(new Error("NTRIP connection timed out")));
+        socket.on("timeout", () =>
+          fail(new Error("NTRIP connection timed out")),
+        );
         socket.on("close", () => {
           if (!this.isCurrent(generation)) return;
 
@@ -244,7 +246,9 @@ export class NtripConnection {
         .toLowerCase()
         .split(",")
         .some((encoding) => encoding.trim() === "chunked");
-      payload = Buffer.from(this.headerBuffer.subarray(headerEnd.payloadOffset));
+      payload = Buffer.from(
+        this.headerBuffer.subarray(headerEnd.payloadOffset),
+      );
       this.headerBuffer = Buffer.alloc(0);
       this.startGgaTimer(generation);
       this.sendLatestGga(generation);
@@ -267,25 +271,13 @@ export class NtripConnection {
     payloadOffset: number;
   } | null {
     const fullHeaderEnd = data.indexOf("\r\n\r\n");
-    if (fullHeaderEnd >= 0) {
-      return {
-        headerLength: fullHeaderEnd,
-        payloadOffset: fullHeaderEnd + 4,
-      };
-    }
 
-    const firstLineEnd = data.indexOf("\r\n");
-    if (firstLineEnd < 0) return null;
+    if (fullHeaderEnd < 0) return null;
 
-    const statusLine = data.subarray(0, firstLineEnd).toString("latin1");
-    if (/^(ICY|SOURCETABLE)\s/i.test(statusLine)) {
-      return {
-        headerLength: firstLineEnd,
-        payloadOffset: firstLineEnd + 2,
-      };
-    }
-
-    return null;
+    return {
+      headerLength: fullHeaderEnd,
+      payloadOffset: fullHeaderEnd + 4,
+    };
   }
 
   private forwardRtcm(data: Buffer, generation: number): void {

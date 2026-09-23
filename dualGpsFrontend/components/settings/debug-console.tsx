@@ -27,12 +27,17 @@ export function DebugConsole({
     isConnecting,
     latestFix,
     latestLine,
-    ntripStatus,
     selectedDevice,
   } = bluetooth;
 
   return (
-    <View style={styles.debugContent}>
+    <ScrollView
+      contentContainerStyle={styles.debugContent}
+      keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+      showsVerticalScrollIndicator={false}
+      style={styles.flex}
+    >
       <View style={styles.card}>
         <Text style={styles.cardTitle}>GNSS solution</Text>
         <Text style={styles.cardCaption}>
@@ -162,6 +167,7 @@ export function DebugConsole({
 
         <ScrollView
           contentContainerStyle={styles.consoleBody}
+          nestedScrollEnabled
           onContentSizeChange={() =>
             consoleRef.current?.scrollToEnd({ animated: true })
           }
@@ -197,6 +203,6 @@ export function DebugConsole({
         </Text>
         <Text style={styles.consoleFooterText}>Last 200 lines retained</Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }

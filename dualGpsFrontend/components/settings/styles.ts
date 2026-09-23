@@ -336,7 +336,7 @@ export const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 2,
   },
-  debugContent: { flex: 1, gap: 12, padding: 16, paddingBottom: 10 },
+  debugContent: { gap: 12, padding: 16, paddingBottom: 36 },
   debugDeviceBar: {
     alignItems: "center",
     backgroundColor: "#FFFFFF",
@@ -404,8 +404,7 @@ export const styles = StyleSheet.create({
     borderColor: "#1E293B",
     borderRadius: 14,
     borderWidth: 1,
-    flex: 1,
-    minHeight: 230,
+    height: 320,
     overflow: "hidden",
   },
   consoleHeader: {
