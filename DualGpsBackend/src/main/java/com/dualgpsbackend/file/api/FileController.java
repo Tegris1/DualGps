@@ -50,8 +50,8 @@ public class FileController {
         return ResponseEntity.created(location).body(response);
     }
 
-    @GetMapping("/{id}")
+    /*@GetMapping("/{id}")
     public ResponseEntity<?> getMetadata(@Valid @PathVariable UUID id, Authentication auth){
-        URI downloadUrl = fileService.create();
-    }
+        URI downloadUrl = fileService.upload();
+    }*/
 }

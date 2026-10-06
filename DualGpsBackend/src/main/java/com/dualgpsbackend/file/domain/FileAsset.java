@@ -2,11 +2,17 @@ package com.dualgpsbackend.file.domain;
 
 import com.dualgpsbackend.model.User;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
+@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 @Table(name = "file_assets")
 public class FileAsset {
 
@@ -25,8 +31,6 @@ public class FileAsset {
 
     @Column(nullable = false)
     private long size;
-
-    private String checksum;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
