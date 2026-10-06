@@ -1,0 +1,40 @@
+package com.dualgpsbackend.file.domain;
+
+import com.dualgpsbackend.model.User;
+import jakarta.persistence.*;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "file_assets")
+public class FileAsset {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, unique = true)
+    private String storageKey;
+
+    @Column(nullable = false)
+    private String originalFilename;
+
+    @Column(nullable = false)
+    private String contentType;
+
+    @Column(nullable = false)
+    private long size;
+
+    private String checksum;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private FilePurpose purpose;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    private User owner;
+
+    @Column(nullable = false)
+    private Instant createdAt;
+}
