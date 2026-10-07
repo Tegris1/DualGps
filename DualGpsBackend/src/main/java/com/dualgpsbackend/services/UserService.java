@@ -52,7 +52,7 @@ public class UserService implements UserDetailsService {
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
         user.setPassword(encoder.encode(dto.getPassword()));
-        user.setRole(Role.USER);
+        user.setRole(Role.OPERATOR);
 
 
         User saved = userRepository.save(user);
@@ -73,11 +73,11 @@ public class UserService implements UserDetailsService {
         return token;
     }
 
-    public User makeEmployee(Long id) {
+    public User makeArchitect(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono uĹĽytkownika"));
         Role previousRole = getUserRole(user);
-        user.setRole(Role.EMPLOYEE);
+        user.setRole(Role.ARCHITECT);
         User saved = userRepository.save(user);
         log.info("User role updated: userId={}, previousRole={}, role={}",
                 saved.getId(), previousRole, saved.getRole());
@@ -122,6 +122,6 @@ public class UserService implements UserDetailsService {
     }
 
     private Role getUserRole(User user) {
-        return user.getRole() == null ? Role.USER : user.getRole();
+        return user.getRole() == null ? Role.OPERATOR : user.getRole();
     }
 }
