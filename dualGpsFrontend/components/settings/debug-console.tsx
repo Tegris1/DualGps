@@ -28,6 +28,7 @@ export function DebugConsole({
     latestFix,
     latestLine,
     selectedDevice,
+    ntripStatus,
   } = bluetooth;
 
   return (
@@ -78,6 +79,36 @@ export function DebugConsole({
           <Text>VDOP: {gsaDop?.vdop ?? "—"}</Text>
           <Text>PDOP: {gsaDop?.pdop ?? "—"}</Text>
           <Text>Last sentence: {latestLine || "—"}</Text>
+        </View>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>NTRIP corrections</Text>
+
+        <View style={{ gap: 7, marginTop: 14 }}>
+          <Text>State: {ntripStatus.state}</Text>
+
+          <Text>Message: {ntripStatus.message ?? "—"}</Text>
+
+          <Text>Correction bytes received: {ntripStatus.bytesReceived}</Text>
+
+          <Text>
+            Bytes written to receiver: {ntripStatus.bytesSentToReceiver}
+          </Text>
+
+          <Text>Valid RTCM frames: {ntripStatus.rtcm.validFrames}</Text>
+
+          <Text>Invalid RTCM frames: {ntripStatus.rtcm.invalidFrames}</Text>
+
+          <Text>
+            Last RTCM message: {ntripStatus.rtcm.lastMessageType ?? "—"}
+          </Text>
+
+          <Text>
+            Last GGA written:{" "}
+            {ntripStatus.lastGgaSentAt
+              ? new Date(ntripStatus.lastGgaSentAt).toLocaleTimeString()
+              : "Not sent yet"}
+          </Text>
         </View>
       </View>
       <SectionIntro

@@ -27,7 +27,12 @@ export async function configureTopcon(
   if (model !== "topcon") return;
 
   for (const command of TOPCON_SETUP_COMMANDS) {
-    await device.write(`${command}\r\n`, "ascii");
+    const written = await device.write(`${command}\r\n`, "ascii");
+
+    if (!written) {
+      throw new Error(`Receiver rejected configuration command: ${command}`);
+    }
+
     await delay(100);
   }
 }

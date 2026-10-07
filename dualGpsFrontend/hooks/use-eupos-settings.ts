@@ -4,13 +4,15 @@ import { Platform } from "react-native";
 
 import type { EuposSettings } from "@/components/settings/types";
 
+import { validateNtripSettings } from "@/lib/gps/ntrip-protocol";
+
 const STORAGE_KEY = "dualgps.asg-eupos-settings";
 const INITIAL_SETTINGS: EuposSettings = {
   username: "",
   password: "",
-  host: "",
+  host: "system.asgeupos.pl",
   port: "2101",
-  mountpoint: "",
+  mountpoint: "RTN_VRS_3_1",
   useTls: false,
 };
 
@@ -42,8 +44,7 @@ async function writeSettings(settings: EuposSettings) {
 }
 
 export function useEuposSettings() {
-  const [settings, setSettings] =
-    useState<EuposSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<EuposSettings>(INITIAL_SETTINGS);
   const [saveMessage, setSaveMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -71,6 +72,14 @@ export function useEuposSettings() {
         port: settings.port.trim(),
         mountpoint: settings.mountpoint.trim(),
       };
+      if (!normalized.password) {
+        throw new Error("Enter your ASG-EUPOS password");
+      }
+
+      validateNtripSettings({
+        ...normalized,
+        port: Number(normalized.port),
+      });
       await writeSettings(normalized);
       setSettings(normalized);
       setSaveMessage("ASG-EUPOS settings saved.");

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NativeModules } from "react-native";
 import BluetoothClassic, {
   type BluetoothDevice,
@@ -72,16 +72,32 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   const consoleIdRef = useRef(0);
   const receiverReadyRef = useRef(false);
   const latestUsableGgaRef = useRef<string | null>(null);
+  const ntripRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ntripRef = useRef<NtripConnection | null>(null);
   const ntripStartingRef = useRef(false);
   const euposSettingsRef = useRef(euposSettings);
-  const nextNtripAttemptAtRef = useRef(0);
   const ntripRetryDelayRef = useRef(INITIAL_NTRIP_RETRY_MS);
+
+  const clearNtripRetry = useCallback(() => {
+    if (ntripRetryTimerRef.current !== null) {
+      clearTimeout(ntripRetryTimerRef.current);
+      ntripRetryTimerRef.current = null;
+    }
+  }, []);
+
+  const stopNtripSession = useCallback(() => {
+    clearNtripRetry();
+
+    const connection = ntripRef.current;
+    ntripRef.current = null;
+    ntripStartingRef.current = false;
+
+    connection?.stop(false);
+  }, [clearNtripRetry]);
 
   useEffect(() => {
     euposSettingsRef.current = euposSettings;
-    nextNtripAttemptAtRef.current = 0;
     ntripRetryDelayRef.current = INITIAL_NTRIP_RETRY_MS;
   }, [euposSettings]);
 
@@ -96,9 +112,7 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
           ({ device }) => {
             if (connectionRef.current?.address !== device.address) return;
 
-            ntripRef.current?.stop(false);
-            ntripRef.current = null;
-            ntripStartingRef.current = false;
+            stopNtripSession();
             dataListenerRef.current?.remove();
             dataListenerRef.current = null;
             connectionRef.current = null;
@@ -127,11 +141,11 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
 
     return () => {
       disconnectSubscription?.remove();
-      ntripRef.current?.stop(false);
+      stopNtripSession();
       dataListenerRef.current?.remove();
       void connectionRef.current?.disconnect().catch(() => undefined);
     };
-  }, []);
+  }, [stopNtripSession]);
 
   function addConsoleLines(rawData: string) {
     const time = currentTime();
@@ -159,6 +173,7 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
       !settings.mountpoint.trim() ||
       !settings.username.trim() ||
       !Number.isInteger(port) ||
+      !settings.password ||
       port < 1 ||
       port > 65535
     ) {
@@ -177,57 +192,108 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
 
   async function startNtrip(device: BluetoothDevice, gga: string) {
     if (
+      connectionRef.current !== device ||
+      !receiverReadyRef.current ||
       ntripStartingRef.current ||
       ntripRef.current?.isRunning() ||
-      Date.now() < nextNtripAttemptAtRef.current
+      ntripRetryTimerRef.current !== null
     ) {
       return;
     }
 
     const settings = currentNtripSettings();
+
     if (!settings) {
       setNtripStatus({
         ...INITIAL_NTRIP_STATUS,
         state: "error",
-        message: "Complete and save the ASG-EUPOS settings to start NTRIP.",
+        message: "Complete the ASG-EUPOS settings to start NTRIP.",
       });
       return;
     }
 
     ntripStartingRef.current = true;
-    const connection = new NtripConnection({
+
+    const connection: NtripConnection = new NtripConnection({
       onStatus: (status) => {
+        if (ntripRef.current !== connection) return;
+
         setNtripStatus(status);
-        if (status.state === "streaming") {
-          nextNtripAttemptAtRef.current = 0;
+
+        if (status.state === "streaming" && status.bytesReceived > 0) {
+          clearNtripRetry();
           ntripRetryDelayRef.current = INITIAL_NTRIP_RETRY_MS;
+        } else if (
+          status.state === "error" ||
+          status.state === "disconnected"
+        ) {
+          scheduleNtripRetry();
         }
       },
     });
+
     ntripRef.current = connection;
 
     try {
       await connection.start(settings, device, gga);
     } catch (error) {
-      if (ntripRef.current === connection) {
-        const delay = ntripRetryDelayRef.current;
-        nextNtripAttemptAtRef.current = Date.now() + delay;
-        ntripRetryDelayRef.current = Math.min(delay * 2, MAX_NTRIP_RETRY_MS);
+      if (ntripRef.current !== connection) return;
 
-        if (!connection.isRunning()) {
-          setNtripStatus((current) => ({
-            ...current,
-            state: "error",
-            message:
-              current.state === "error"
-                ? current.message
-                : `Could not start NTRIP: ${String(error)}`,
-          }));
-        }
-      }
+      const message = error instanceof Error ? error.message : String(error);
+
+      setNtripStatus((current) => ({
+        ...current,
+        state: "error",
+        message,
+      }));
+
+      scheduleNtripRetry();
     } finally {
-      ntripStartingRef.current = false;
+      if (ntripRef.current === connection) {
+        ntripStartingRef.current = false;
+      }
     }
+  }
+
+  function scheduleNtripRetry(): void {
+    const device = connectionRef.current;
+
+    if (
+      !device ||
+      !receiverReadyRef.current ||
+      ntripRetryTimerRef.current !== null
+    ) {
+      return;
+    }
+
+    const delay = ntripRetryDelayRef.current;
+    ntripRetryDelayRef.current = Math.min(delay * 2, MAX_NTRIP_RETRY_MS);
+
+    ntripRetryTimerRef.current = setTimeout(() => {
+      ntripRetryTimerRef.current = null;
+
+      // Ignore a retry belonging to a previous Bluetooth session.
+      if (
+        connectionRef.current !== device ||
+        !receiverReadyRef.current ||
+        ntripRef.current?.isRunning()
+      ) {
+        return;
+      }
+
+      if (ntripStartingRef.current) {
+        scheduleNtripRetry();
+        return;
+      }
+
+      const gga = latestUsableGgaRef.current;
+
+      if (gga) {
+        void startNtrip(device, gga);
+      }
+      // Without a usable GGA, the receiver listener will start NTRIP
+      // when the next usable position arrives.
+    }, delay);
   }
 
   function handleReceiverData(rawData: string, device: BluetoothDevice) {
@@ -335,10 +401,7 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   }
 
   async function disconnect() {
-    ntripRef.current?.stop();
-    ntripRef.current = null;
-    ntripStartingRef.current = false;
-    nextNtripAttemptAtRef.current = 0;
+    stopNtripSession();
     ntripRetryDelayRef.current = INITIAL_NTRIP_RETRY_MS;
     dataListenerRef.current?.remove();
     dataListenerRef.current = null;
@@ -410,8 +473,7 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
         void startNtrip(connectedDevice, latestUsableGgaRef.current);
       }
     } catch (error) {
-      ntripRef.current?.stop(false);
-      ntripRef.current = null;
+      stopNtripSession();
       dataListenerRef.current?.remove();
       dataListenerRef.current = null;
       connectionRef.current = null;
