@@ -38,5 +38,5 @@ public class User {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 32)
-    private Role role = Role.USER;
+    private Role role = Role.OPERATOR;
 }

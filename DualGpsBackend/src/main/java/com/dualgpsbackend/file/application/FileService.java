@@ -73,6 +73,20 @@ public class FileService {
         );
     }
 
+    public FileDownload download(UUID id, String authEmail){
+        FileAsset asset = fileAssetRepository.findByIdAndOwner_Email(id,authEmail)
+                .orElseThrow(FileAssetNotFoundException::new);
+        String storageKey = asset.getStorageKey();
+
+        log.debug("Download authorized: fileId={}", id);
+
+        return new FileDownload(
+                asset.getOriginalFilename(),
+                asset.getSize(),
+                () -> fileStorage.download(asset.getStorageKey())
+                );
+    }
+
     private void validate(UploadFileCommand command){
         if(command == null){
             throw new IllegalArgumentException("Upload data required");

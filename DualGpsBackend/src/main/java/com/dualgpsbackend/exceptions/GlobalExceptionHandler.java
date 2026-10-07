@@ -1,5 +1,6 @@
 package com.dualgpsbackend.exceptions;
 
+import com.dualgpsbackend.file.application.FileAssetNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -54,5 +55,13 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", "An internal error occurred"));
+    }
+
+    @ExceptionHandler(FileAssetNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleFileNotFound(
+            FileAssetNotFoundException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", "File not found"));
     }
 }
