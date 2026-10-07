@@ -4,7 +4,7 @@ import com.dualgpsbackend.file.domain.FilePurpose;
 
 import java.io.InputStream;
 
-public record UploadFileCommand(
+public record UploadFileCommandDTO(
         String ownerEmail,
         String originalFilename,
         String contentType,

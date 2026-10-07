@@ -1,6 +1,6 @@
 package com.dualgpsbackend.file.domain;
 
-import com.dualgpsbackend.model.User;
+import com.dualgpsbackend.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
 

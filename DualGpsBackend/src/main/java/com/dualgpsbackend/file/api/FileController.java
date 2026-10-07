@@ -1,9 +1,9 @@
 package com.dualgpsbackend.file.api;
 
-import com.dualgpsbackend.file.application.FileDownload;
+import com.dualgpsbackend.file.application.FileDownloadDTO;
 import com.dualgpsbackend.file.application.FileService;
-import com.dualgpsbackend.file.application.UploadFileCommand;
-import com.dualgpsbackend.file.application.UploadedFile;
+import com.dualgpsbackend.file.application.UploadFileCommandDTO;
+import com.dualgpsbackend.file.application.UploadedFileDTO;
 import com.dualgpsbackend.file.domain.FilePurpose;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -30,14 +30,14 @@ public class FileController {
     private final FileService fileService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UploadedFile> upload(
+    public ResponseEntity<UploadedFileDTO> upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam FilePurpose purpose,
             Authentication auth
             )throws IOException {
 
         try(InputStream content = file.getInputStream()) {
-            UploadFileCommand command = new UploadFileCommand(
+            UploadFileCommandDTO command = new UploadFileCommandDTO(
                     auth.getName(),
                     file.getOriginalFilename(),
                     file.getContentType(),
@@ -46,7 +46,7 @@ public class FileController {
                     content
             );
 
-            UploadedFile response = fileService.upload(command);
+            UploadedFileDTO response = fileService.upload(command);
 
             URI location = ServletUriComponentsBuilder
                     .fromCurrentRequest()
@@ -63,7 +63,7 @@ public class FileController {
             @PathVariable UUID id,
             Authentication authentication){
         String email = authentication.getName();
-        FileDownload file = fileService.download(id,email);
+        FileDownloadDTO file = fileService.download(id,email);
 
         String filename = file.originalFilename()
                 .replace('\\', '/')

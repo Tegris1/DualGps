@@ -1,4 +1,4 @@
-package com.dualgpsbackend.model;
+package com.dualgpsbackend.user.domain;
 
 public enum Role {
     OPERATOR,

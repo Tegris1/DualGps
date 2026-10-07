@@ -1,4 +1,4 @@
-package com.dualgpsbackend.config;
+package com.dualgpsbackend.security.config;
 
 import com.dualgpsbackend.security.JwtAuthFilter;
 import lombok.AllArgsConstructor;

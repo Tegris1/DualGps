@@ -9,7 +9,7 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-public record UploadedFile(
+public record UploadedFileDTO(
         UUID id,
         String originalFilename,
         String contentType,

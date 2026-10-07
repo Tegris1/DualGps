@@ -1,11 +1,11 @@
 package com.dualgpsbackend.file.api;
 
-import com.dualgpsbackend.config.WebSecurityConfig;
+import com.dualgpsbackend.security.config.WebSecurityConfig;
 import com.dualgpsbackend.file.application.FileService;
-import com.dualgpsbackend.file.application.UploadFileCommand;
-import com.dualgpsbackend.file.application.UploadedFile;
+import com.dualgpsbackend.file.application.UploadFileCommandDTO;
+import com.dualgpsbackend.file.application.UploadedFileDTO;
 import com.dualgpsbackend.file.domain.FilePurpose;
-import com.dualgpsbackend.model.Role;
+import com.dualgpsbackend.user.domain.Role;
 import com.dualgpsbackend.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,10 +83,10 @@ class FileControllerTest {
     void uploadUsesTheAuthenticatedOwnerAndReturnsCreatedMetadata(FilePurpose purpose) throws Exception {
         UUID fileId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-10-07T12:00:00Z");
-        when(fileService.upload(any(UploadFileCommand.class))).thenAnswer(invocation -> {
-            UploadFileCommand command = invocation.getArgument(0);
+        when(fileService.upload(any(UploadFileCommandDTO.class))).thenAnswer(invocation -> {
+            UploadFileCommandDTO command = invocation.getArgument(0);
             assertThat(command.content().readAllBytes()).isEqualTo(CONTENT);
-            return new UploadedFile(fileId, "sample.txt", "text/plain", CONTENT.length, purpose, createdAt);
+            return new UploadedFileDTO(fileId, "sample.txt", "text/plain", CONTENT.length, purpose, createdAt);
         });
 
         mvc.perform(authenticatedUpload(file())
@@ -103,9 +103,9 @@ class FileControllerTest {
                 .andExpect(jsonPath("$.storageKey").doesNotExist())
                 .andExpect(jsonPath("$.owner").doesNotExist());
 
-        ArgumentCaptor<UploadFileCommand> commandCaptor = ArgumentCaptor.forClass(UploadFileCommand.class);
+        ArgumentCaptor<UploadFileCommandDTO> commandCaptor = ArgumentCaptor.forClass(UploadFileCommandDTO.class);
         verify(fileService).upload(commandCaptor.capture());
-        UploadFileCommand command = commandCaptor.getValue();
+        UploadFileCommandDTO command = commandCaptor.getValue();
         assertThat(command.ownerEmail()).isEqualTo(OWNER_EMAIL);
         assertThat(command.originalFilename()).isEqualTo("sample.txt");
         assertThat(command.contentType()).isEqualTo("text/plain");
@@ -157,7 +157,7 @@ class FileControllerTest {
     @Test
     void validationFailureReturnsBadRequestAndClosesTheInputStream() throws Exception {
         InputStream input = mock(InputStream.class);
-        when(fileService.upload(any(UploadFileCommand.class)))
+        when(fileService.upload(any(UploadFileCommandDTO.class)))
                 .thenThrow(new IllegalArgumentException("File must be nonempty"));
 
         mvc.perform(authenticatedUpload(fileWithInputStream(input)).param("purpose", "DOCUMENT"))
@@ -170,7 +170,7 @@ class FileControllerTest {
     @Test
     void successfulUploadClosesTheInputStream() throws Exception {
         InputStream input = mock(InputStream.class);
-        when(fileService.upload(any(UploadFileCommand.class))).thenReturn(new UploadedFile(
+        when(fileService.upload(any(UploadFileCommandDTO.class))).thenReturn(new UploadedFileDTO(
                 UUID.randomUUID(), "sample.txt", "text/plain", CONTENT.length, FilePurpose.DOCUMENT, Instant.now()
         ));
 
@@ -184,7 +184,7 @@ class FileControllerTest {
     @MethodSource("infrastructureFailures")
     void infrastructureFailureReturnsGenericErrorAndClosesTheInputStream(Exception failure) throws Exception {
         InputStream input = mock(InputStream.class);
-        when(fileService.upload(any(UploadFileCommand.class))).thenThrow(failure);
+        when(fileService.upload(any(UploadFileCommandDTO.class))).thenThrow(failure);
 
         mvc.perform(authenticatedUpload(fileWithInputStream(input)).param("purpose", "DOCUMENT"))
                 .andExpect(status().isInternalServerError())

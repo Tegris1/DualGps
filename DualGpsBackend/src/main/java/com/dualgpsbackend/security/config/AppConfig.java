@@ -1,4 +1,4 @@
-package com.dualgpsbackend.config;
+package com.dualgpsbackend.security.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

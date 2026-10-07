@@ -1,14 +1,12 @@
 package com.dualgpsbackend.file.application;
 
-import com.dualgpsbackend.file.api.FileResponse;
 import com.dualgpsbackend.file.domain.FileAsset;
 import com.dualgpsbackend.file.persistence.FileAssetRepository;
 import com.dualgpsbackend.file.storage.FileStorage;
-import com.dualgpsbackend.model.User;
-import com.dualgpsbackend.reositories.UserRepository;
+import com.dualgpsbackend.user.domain.User;
+import com.dualgpsbackend.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +25,7 @@ public class FileService {
     private final FileAssetRepository fileAssetRepository;
     private final UserRepository userRepository;
 
-    public UploadedFile upload (UploadFileCommand command) throws IOException{
+    public UploadedFileDTO upload (UploadFileCommandDTO command) throws IOException{
         validate(command);
 
         User owner = userRepository.findByEmail(command.ownerEmail()).orElseThrow(
@@ -63,7 +61,7 @@ public class FileService {
         log.info("Upload completed: fileId={}, ownerId={}, purpose={}, size={}",
                 saved.getId(), owner.getId(), saved.getPurpose(), saved.getSize());
 
-        return new UploadedFile(
+        return new UploadedFileDTO(
                 saved.getId(),
                 saved.getOriginalFilename(),
                 saved.getContentType(),
@@ -73,21 +71,21 @@ public class FileService {
         );
     }
 
-    public FileDownload download(UUID id, String authEmail){
+    public FileDownloadDTO download(UUID id, String authEmail){
         FileAsset asset = fileAssetRepository.findByIdAndOwner_Email(id,authEmail)
                 .orElseThrow(FileAssetNotFoundException::new);
         String storageKey = asset.getStorageKey();
 
         log.debug("Download authorized: fileId={}", id);
 
-        return new FileDownload(
+        return new FileDownloadDTO(
                 asset.getOriginalFilename(),
                 asset.getSize(),
                 () -> fileStorage.download(asset.getStorageKey())
                 );
     }
 
-    private void validate(UploadFileCommand command){
+    private void validate(UploadFileCommandDTO command){
         if(command == null){
             throw new IllegalArgumentException("Upload data required");
         }

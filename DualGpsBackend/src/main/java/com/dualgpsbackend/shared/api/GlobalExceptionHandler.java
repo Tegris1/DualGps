@@ -1,6 +1,7 @@
-package com.dualgpsbackend.exceptions;
+package com.dualgpsbackend.shared.api;
 
 import com.dualgpsbackend.file.application.FileAssetNotFoundException;
+import com.dualgpsbackend.user.application.UserAlreadyExistsException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;

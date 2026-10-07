@@ -1,7 +1,7 @@
-package com.dualgpsbackend.reositories;
+package com.dualgpsbackend.user.persistence;
 
-import com.dualgpsbackend.model.Role;
-import com.dualgpsbackend.model.User;
+import com.dualgpsbackend.user.domain.Role;
+import com.dualgpsbackend.user.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,6 +1,6 @@
 package com.dualgpsbackend.security;
 
-import com.dualgpsbackend.model.Role;
+import com.dualgpsbackend.user.domain.Role;
 import io.jsonwebtoken.Jwts;
 import org.springframework.stereotype.Component;
 

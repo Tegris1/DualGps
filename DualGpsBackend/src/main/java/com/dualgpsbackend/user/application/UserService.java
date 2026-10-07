@@ -1,12 +1,8 @@
-package com.dualgpsbackend.services;
+package com.dualgpsbackend.user.application;
 
-import com.dualgpsbackend.dtos.LoginDto;
-import com.dualgpsbackend.dtos.UserDto;
-import com.dualgpsbackend.exceptions.UserAlreadyExistsException;
-import com.dualgpsbackend.mappers.UserMapper;
-import com.dualgpsbackend.model.Role;
-import com.dualgpsbackend.model.User;
-import com.dualgpsbackend.reositories.UserRepository;
+import com.dualgpsbackend.user.domain.Role;
+import com.dualgpsbackend.user.domain.User;
+import com.dualgpsbackend.user.persistence.UserRepository;
 import com.dualgpsbackend.security.JwtUtil;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +40,7 @@ public class UserService implements UserDetailsService {
     private final JwtUtil jwtUtil;
     private final UserMapper userMapper;
 
-    public User register(UserDto dto) {
+    public User register(UserDTO dto) {
         if(userRepository.findByEmail(dto.getEmail()).isPresent()){
             throw new UserAlreadyExistsException("Email already registered");
         }
@@ -60,7 +56,7 @@ public class UserService implements UserDetailsService {
         return saved;
     }
 
-    public String login(LoginDto dto) {
+    public String login(LoginDTO dto) {
         User user = userRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
 
@@ -103,7 +99,7 @@ public class UserService implements UserDetailsService {
         return saved;
     }
 
-    public User updateUserDetails(UserDto dto, String email) {
+    public User updateUserDetails(UserDTO dto, String email) {
         User oldUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
         User newUser = userMapper.updateUser(dto, oldUser);
@@ -112,7 +108,7 @@ public class UserService implements UserDetailsService {
         return saved;
     }
 
-    public User updateUserDetails(UserDto dto, Long id) {
+    public User updateUserDetails(UserDTO dto, Long id) {
         User oldUser = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
         User newUser = userMapper.updateUser(dto, oldUser);

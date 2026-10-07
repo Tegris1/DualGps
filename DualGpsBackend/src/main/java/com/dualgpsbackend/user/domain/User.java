@@ -1,4 +1,4 @@
-package com.dualgpsbackend.model;
+package com.dualgpsbackend.user.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;

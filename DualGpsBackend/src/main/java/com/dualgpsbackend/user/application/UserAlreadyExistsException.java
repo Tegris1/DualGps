@@ -1,4 +1,4 @@
-package com.dualgpsbackend.exceptions;
+package com.dualgpsbackend.user.application;
 
 public class UserAlreadyExistsException extends RuntimeException {
     public UserAlreadyExistsException(String message) {

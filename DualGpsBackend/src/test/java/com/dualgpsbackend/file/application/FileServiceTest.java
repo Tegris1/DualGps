@@ -4,8 +4,8 @@ import com.dualgpsbackend.file.domain.FileAsset;
 import com.dualgpsbackend.file.domain.FilePurpose;
 import com.dualgpsbackend.file.persistence.FileAssetRepository;
 import com.dualgpsbackend.file.storage.FileStorage;
-import com.dualgpsbackend.model.User;
-import com.dualgpsbackend.reositories.UserRepository;
+import com.dualgpsbackend.user.domain.User;
+import com.dualgpsbackend.user.persistence.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,11 +71,11 @@ class FileServiceTest {
 
     @Test
     void uploadsBeforeSavingMetadataAndReturnsPersistedResult() throws IOException {
-        UploadFileCommand command = validCommand();
+        UploadFileCommandDTO command = validCommand();
         UUID fileId = stubSuccessfulPersistence();
         Instant beforeUpload = Instant.now();
 
-        UploadedFile result = fileService.upload(command);
+        UploadedFileDTO result = fileService.upload(command);
 
         ArgumentCaptor<FileAsset> assetCaptor = ArgumentCaptor.forClass(FileAsset.class);
         verify(fileAssetRepository).saveAndFlush(assetCaptor.capture());
@@ -94,7 +94,7 @@ class FileServiceTest {
         operations.verify(fileAssetRepository).saveAndFlush(asset);
         verify(fileStorage, never()).delete(anyString());
 
-        assertThat(result).isEqualTo(new UploadedFile(
+        assertThat(result).isEqualTo(new UploadedFileDTO(
                 fileId, command.originalFilename(), command.contentType(), CONTENT.length,
                 command.purpose(), asset.getCreatedAt()
         ));
@@ -104,17 +104,17 @@ class FileServiceTest {
     @ValueSource(longs = {1, MAX_FILE_SIZE})
     void acceptsFileSizeBoundaries(long size) throws IOException {
         stubSuccessfulPersistence();
-        UploadFileCommand command = command(OWNER_EMAIL, "sample.txt", "text/plain", size,
+        UploadFileCommandDTO command = command(OWNER_EMAIL, "sample.txt", "text/plain", size,
                 FilePurpose.DOCUMENT, new ByteArrayInputStream(new byte[(int) size]));
 
-        UploadedFile result = fileService.upload(command);
+        UploadedFileDTO result = fileService.upload(command);
 
         assertThat(result.size()).isEqualTo(size);
     }
 
     @ParameterizedTest(name = "Rejects {0}")
     @MethodSource("invalidCommands")
-    void rejectsInvalidInputBeforeAccessingStorageOrDatabase(String description, UploadFileCommand command) {
+    void rejectsInvalidInputBeforeAccessingStorageOrDatabase(String description, UploadFileCommandDTO command) {
         assertThatThrownBy(() -> fileService.upload(command))
                 .isInstanceOf(IllegalArgumentException.class);
 
@@ -148,7 +148,7 @@ class FileServiceTest {
         when(userRepository.findByEmail(OWNER_EMAIL)).thenReturn(Optional.of(owner));
         DataIntegrityViolationException failure = new DataIntegrityViolationException("Metadata rejected");
         when(fileAssetRepository.saveAndFlush(any(FileAsset.class))).thenThrow(failure);
-        UploadFileCommand command = validCommand();
+        UploadFileCommandDTO command = validCommand();
 
         assertThatThrownBy(() -> fileService.upload(command)).isSameAs(failure);
 
@@ -184,14 +184,14 @@ class FileServiceTest {
         return fileId;
     }
 
-    private static UploadFileCommand validCommand() {
+    private static UploadFileCommandDTO validCommand() {
         return command(OWNER_EMAIL, "sample.txt", "text/plain", CONTENT.length,
                 FilePurpose.GPS_IMPORT, new ByteArrayInputStream(CONTENT));
     }
 
-    private static UploadFileCommand command(String email, String filename, String contentType,
+    private static UploadFileCommandDTO command(String email, String filename, String contentType,
                                              long size, FilePurpose purpose, InputStream content) {
-        return new UploadFileCommand(email, filename, contentType, size, purpose, content);
+        return new UploadFileCommandDTO(email, filename, contentType, size, purpose, content);
     }
 
     private static Stream<Arguments> invalidCommands() {

@@ -1,8 +1,8 @@
-package com.dualgpsbackend.controllers;
+package com.dualgpsbackend.user.api;
 
-import com.dualgpsbackend.dtos.LoginDto;
-import com.dualgpsbackend.dtos.UserDto;
-import com.dualgpsbackend.services.UserService;
+import com.dualgpsbackend.user.application.LoginDTO;
+import com.dualgpsbackend.user.application.UserDTO;
+import com.dualgpsbackend.user.application.UserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -29,12 +29,12 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody UserDto userDTO) {
+    public ResponseEntity<?> register(@Valid @RequestBody UserDTO userDTO) {
         return ResponseEntity.ok(userService.register(userDTO));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginDto dto) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginDTO dto) {
         try {
             String token = userService.login(dto);
             return ResponseEntity.ok(Map.of("token", token));
