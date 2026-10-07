@@ -9,6 +9,7 @@ import com.dualgpsbackend.model.User;
 import com.dualgpsbackend.reositories.UserRepository;
 import com.dualgpsbackend.security.JwtUtil;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @NullMarked
 @Service
 @AllArgsConstructor
@@ -53,7 +55,9 @@ public class UserService implements UserDetailsService {
         user.setRole(Role.USER);
 
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        log.info("User registered: userId={}", saved.getId());
+        return saved;
     }
 
     public String login(LoginDto dto) {
@@ -64,14 +68,20 @@ public class UserService implements UserDetailsService {
             throw new BadCredentialsException("Nieprawidłowe dane logowania");
         }
 
-        return jwtUtil.generateToken(user.getEmail(), getUserRole(user));
+        String token = jwtUtil.generateToken(user.getEmail(), getUserRole(user));
+        log.info("User login completed: userId={}", user.getId());
+        return token;
     }
 
     public User makeEmployee(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono uĹĽytkownika"));
+        Role previousRole = getUserRole(user);
         user.setRole(Role.EMPLOYEE);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        log.info("User role updated: userId={}, previousRole={}, role={}",
+                saved.getId(), previousRole, saved.getRole());
+        return saved;
     }
 
     public List<User> findAll() {
@@ -85,22 +95,30 @@ public class UserService implements UserDetailsService {
     public User updateUserRole(Long id, Role role) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono uĹĽytkownika"));
+        Role previousRole = getUserRole(user);
         user.setRole(role);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        log.info("User role updated: userId={}, previousRole={}, role={}",
+                saved.getId(), previousRole, saved.getRole());
+        return saved;
     }
 
     public User updateUserDetails(UserDto dto, String email) {
         User oldUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
         User newUser = userMapper.updateUser(dto, oldUser);
-        return userRepository.save(newUser);
+        User saved = userRepository.save(newUser);
+        log.debug("User details updated: userId={}", saved.getId());
+        return saved;
     }
 
     public User updateUserDetails(UserDto dto, Long id) {
         User oldUser = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
         User newUser = userMapper.updateUser(dto, oldUser);
-        return userRepository.save(newUser);
+        User saved = userRepository.save(newUser);
+        log.debug("User details updated: userId={}", saved.getId());
+        return saved;
     }
 
     private Role getUserRole(User user) {

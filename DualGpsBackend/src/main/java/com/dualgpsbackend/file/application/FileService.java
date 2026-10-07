@@ -7,6 +7,7 @@ import com.dualgpsbackend.file.storage.FileStorage;
 import com.dualgpsbackend.model.User;
 import com.dualgpsbackend.reositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileService {
@@ -34,6 +36,9 @@ public class FileService {
 
         String storageKey = UUID.randomUUID().toString();
 
+        log.debug("Starting upload: storageKey={}, ownerId={}, purpose={}, size={}",
+                storageKey, owner.getId(), command.purpose(), command.size());
+
         FileAsset  asset = new FileAsset();
         asset.setStorageKey(storageKey);
         asset.setOriginalFilename(command.originalFilename());
@@ -41,6 +46,7 @@ public class FileService {
         asset.setSize(command.size());
         asset.setPurpose(command.purpose());
         asset.setOwner(owner);
+        asset.setCreatedAt(Instant.now());
 
         fileStorage.upload(storageKey, command.content());
 
@@ -49,9 +55,13 @@ public class FileService {
         try {
             saved = fileAssetRepository.saveAndFlush(asset);
         } catch (RuntimeException exception) {
+            log.debug("Metadata persistence failed; removing upload: storageKey={}", storageKey);
             deleteAfterFailure(storageKey, exception);
             throw exception;
         }
+
+        log.info("Upload completed: fileId={}, ownerId={}, purpose={}, size={}",
+                saved.getId(), owner.getId(), saved.getPurpose(), saved.getSize());
 
         return new UploadedFile(
                 saved.getId(),
@@ -96,8 +106,10 @@ public class FileService {
     ) {
         try {
             fileStorage.delete(storageKey);
+            log.debug("Upload cleanup completed: storageKey={}", storageKey);
         } catch (IOException cleanupException) {
             originalException.addSuppressed(cleanupException);
+            log.warn("Upload cleanup failed; file may remain: storageKey={}", storageKey);
         }
     }
 
