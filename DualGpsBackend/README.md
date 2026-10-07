@@ -17,14 +17,5 @@ The default local database values are:
 - username: `dual_gps`
 - password: `dual_gps`
 
-You can override the credentials and published ports through environment variables.
-For example, in PowerShell:
-
-```powershell
-$env:POSTGRES_PASSWORD = "choose-a-password"
-$env:BACKEND_PORT = "8081"
-docker compose up --build
-```
-
 Stop the containers with `docker compose down`. To also delete the persisted database
 data, run `docker compose down --volumes`.

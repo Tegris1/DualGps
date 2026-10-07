@@ -4,6 +4,7 @@ import com.dualgpsbackend.dtos.LoginDto;
 import com.dualgpsbackend.dtos.UserDto;
 import com.dualgpsbackend.services.UserService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -37,6 +39,7 @@ public class AuthController {
             String token = userService.login(dto);
             return ResponseEntity.ok(Map.of("token", token));
         } catch (UsernameNotFoundException | BadCredentialsException e) {
+            log.debug("Login rejected: reason={}", e.getClass().getSimpleName());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
     }
