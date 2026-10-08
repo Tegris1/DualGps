@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { Buffer } from 'buffer';
 
 import { NtripChunkDecoder } from '../../lib/gps/ntrip-chunk-decoder';
@@ -12,6 +12,21 @@ const response = Buffer.concat([
 describe('NTRIP chunk decoding', () => {
   it('preserves binary payload bytes and removes chunk framing', () => {
     expect(Buffer.concat(new NtripChunkDecoder().push(response))).toEqual(payload);
+  });
+
+  it('decodes successive chunks when Buffer.subarray returns plain Uint8Arrays', () => {
+    const prototype = Buffer.prototype as { subarray: (start?: number, end?: number) => Buffer };
+    const subarray = jest.spyOn(prototype, 'subarray').mockImplementation(function (
+      this: Buffer, start?: number, end?: number,
+    ) {
+      return new Uint8Array(this.buffer, this.byteOffset, this.byteLength)
+        .subarray(start, end) as Buffer;
+    });
+    try {
+      expect(Buffer.concat(new NtripChunkDecoder().push(response))).toEqual(payload);
+    } finally {
+      subarray.mockRestore();
+    }
   });
 
   it('decodes identically at every possible two-packet split', () => {

@@ -276,9 +276,11 @@ export class NtripConnection {
       const headerEnd = this.findHeaderEnd(this.headerBuffer);
       if (headerEnd === null) return false;
 
-      const headerText = this.headerBuffer
-        .subarray(0, headerEnd.headerLength)
-        .toString("latin1");
+      // Decode on the Buffer itself: Hermes can return a plain Uint8Array
+      // from subarray(), whose toString() produces comma-separated numbers.
+      const headerText = this.headerBuffer.toString(
+        "latin1", 0, headerEnd.headerLength,
+      );
       const response = parseNtripHeaders(headerText);
 
       if (!successfulNtripStatus(response.statusLine)) {

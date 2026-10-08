@@ -30,7 +30,7 @@ export class NtripChunkDecoder {
           throw new Error("Invalid separator in chunked NTRIP response");
         }
 
-        this.pending = this.pending.subarray(2);
+        this.pending = this.pending.slice(2);
         this.needsChunkTerminator = false;
       }
 
@@ -45,8 +45,10 @@ export class NtripChunkDecoder {
           break;
         }
 
-        const line = this.pending.subarray(0, lineEnd).toString("ascii").trim();
-        this.pending = this.pending.subarray(lineEnd + 2);
+        // Keep Buffer methods on retained views and decode before slicing.
+        // Hermes subarray() views can lose the Buffer prototype.
+        const line = this.pending.toString("ascii", 0, lineEnd).trim();
+        this.pending = this.pending.slice(lineEnd + 2);
 
         // Ignore blank lines like the Kotlin implementation.
         if (!line) continue;
@@ -77,7 +79,7 @@ export class NtripChunkDecoder {
       const count = Math.min(this.pending.length, this.remainingInChunk);
 
       output.push(Buffer.from(this.pending.subarray(0, count)));
-      this.pending = this.pending.subarray(count);
+      this.pending = this.pending.slice(count);
       this.remainingInChunk -= count;
 
       if (this.remainingInChunk === 0) {

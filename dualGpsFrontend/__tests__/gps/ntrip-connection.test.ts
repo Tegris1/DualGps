@@ -105,6 +105,28 @@ describe('NTRIP connection lifecycle', () => {
     expect(write).toHaveBeenCalledWith(payload);
   });
 
+  it('decodes headers when the runtime returns plain Uint8Arrays from Buffer.subarray', async () => {
+    const prototype = Buffer.prototype as { subarray: (start?: number, end?: number) => Buffer };
+    const subarray = jest.spyOn(prototype, 'subarray').mockImplementation(function (
+      this: Buffer, start?: number, end?: number,
+    ) {
+      return new Uint8Array(this.buffer, this.byteOffset, this.byteLength)
+        .subarray(start, end) as Buffer;
+    });
+    try {
+      const started = connection.start(settings, receiver, gga()).catch((error: Error) => error);
+      connected();
+      const payload = Buffer.from([0xd3, 0, 0xff, 0x80]);
+      socket.emit('data', Buffer.concat([headers, payload]));
+      expect(await started).toBeUndefined();
+      await jest.advanceTimersByTimeAsync(1);
+      expect(onError).not.toHaveBeenCalled();
+      expect(write).toHaveBeenCalledWith(payload);
+    } finally {
+      subarray.mockRestore();
+    }
+  });
+
   it('removes HTTP chunk framing before forwarding binary correction bytes', async () => {
     const started = connection.start(settings, receiver, gga());
     connected();

@@ -1,5 +1,7 @@
 module.exports = {
   preset: 'jest-expo',
+  // React Native uses the npm polyfill, not Node's built-in Buffer.
+  moduleNameMapper: { '^buffer$': require.resolve('buffer/') },
   testMatch: ['<rootDir>/__tests__/**/*.test.ts', '<rootDir>/__tests__/**/*.test.tsx'],
   collectCoverageFrom: [
     'lib/gps/nmea.ts',
