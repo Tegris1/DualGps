@@ -76,3 +76,16 @@ utils/               Android permission helper
 ```
 
 The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-serial.ts). The protocol modules under [lib/gps](lib/gps) keep parsing and stream handling separate from the screens. [ntrip-connection.ts](lib/gps/ntrip-connection.ts) manages the socket, GGA updates, correction forwarding, and diagnostics.
+
+## Tests
+
+Run the frontend tests from this directory:
+
+```powershell
+npm test
+npm run test:coverage
+```
+
+Use `npm run test:watch` while developing. The Jest suite uses the Expo preset and tests NMEA parsing, NTRIP request validation, chunked binary response decoding, RTCM frame inspection, and the NTRIP connection lifecycle. It covers malformed inputs, checksum failures, coordinate boundaries, fragmented packets, write ordering, backpressure, timeouts, cleanup, and stale callbacks. Connection tests mock TCP/TLS sockets and Bluetooth writes, so no receiver or backend is required.
+
+Coverage reports are written to `coverage/`. Physical-device checks are still needed for Bluetooth pairing, receiver configuration, correction delivery, and reaching an RTK fix.
