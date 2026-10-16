@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "inspect:terrain": "node ./scripts/inspect-terrain.mjs",
+    "test:terrain": "node --test ./scripts/__tests__/inspect-terrain.test.mjs",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --runInBand --coverage"
