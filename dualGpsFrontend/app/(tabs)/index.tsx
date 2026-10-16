@@ -8,7 +8,7 @@ export default function Index() {
   return (
     <View style={styles.view}>
       <Text>Edit app/index.tsx to edit this screen.</Text>
-      <Link href="/login" style={styles.navigationButton}>
+      <Link href="/auth" style={styles.navigationButton}>
         <Text>Login</Text>
       </Link>
       <Button
