@@ -77,6 +77,59 @@ utils/               Android permission helper
 
 The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-serial.ts). The protocol modules under [lib/gps](lib/gps) keep parsing and stream handling separate from the screens. [ntrip-connection.ts](lib/gps/ntrip-connection.ts) manages the socket, GGA updates, correction forwarding, and diagnostics.
 
+## Terrain rendering preview
+
+The next demo increment displays the bundled `demo/Original.glb` and `demo/Target.glb` together. It provides layer switches, camera rotation, zoom, a top view, and reset. The current surface is brown; the target is a cyan wireframe overlay that stays visible through the current surface. Both models retain their exported placement and rotation, and the camera fits their combined bounds.
+
+From this directory, run in PowerShell:
+
+```powershell
+npm ci
+$env:EXPO_PUBLIC_DEMO_MODE = "true"
+npx expo run:android
+```
+
+Rebuild the native app after installing the new GL and file-system modules; restarting Metro alone cannot add them to an existing binary. Subsequent JavaScript changes can use `npm start` with the same demo environment variable. For development, the Android emulator connects to the local Metro server; models are bundled and require no external asset service.
+
+On Windows, a long checkout path can cause Ninja to report `Filename longer than 260 characters` during native compilation. Use a short checkout path, such as `C:\src\DualGps`, or use the included Gradle init script. For an x86_64 Android emulator, with the demo environment variable still set:
+
+```powershell
+npx expo prebuild --platform android
+Push-Location android
+.\gradlew.bat --init-script ..\scripts\android-short-path.init.gradle app:assembleDebug "-PreactNativeArchitectures=x86_64"
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+Pop-Location
+npx expo start --offline
+```
+
+Press `a` once Metro is ready to open the installed app. The init script only changes generated CMake output placement for that invocation. Offline Metro also avoids a failing remote dependency check by using the installed SDK's local metadata.
+
+Demo mode currently opens the rendering preview directly and does not mount the authentication or GPS providers. Demo login, model selection, the excavator, and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
+
+Manual preview check: confirm both models load, switch each layer off/on, rotate in both directions, zoom, select top view, and reset. The models must remain aligned during camera changes. A loading failure displays an error with a retry action. This preview preserves source transforms; surveyed alignment and units still need confirmation against the source project.
+
+Verified on an x86_64 Android API 37 emulator at 1080 x 2424 pixels, using React 19.1, Expo SDK 54, React Three Fiber 9.4.2, and Three.js 0.180.0. The existing normal-mode sign-in screen was also checked with demo mode disabled.
+
+## Terrain asset inspection
+
+Before adding models to the terrain demo, inspect their packaging and mesh metadata:
+
+```powershell
+npm run inspect:terrain -- "C:\Models\current.glb" "C:\Models\target.gltf"
+```
+
+This command only needs Node.js; it works without `npm install`, Android, or the backend. It reads the files without modifying them and reports mesh names, triangle counts, referenced resources, and compression decoder requirements. Triangle counts describe mesh definitions once each, not scene instances. Both GLB and glTF resources are resolved relative to the model file; remote dependencies are reported without fetching them.
+
+The command exits with `0` when the packaging checks pass, `1` for an unreadable/unsupported asset, malformed metadata, or unavailable resources, and `2` when no input paths are provided. Missing local resources, short external buffers, and remote dependencies fail the packaging check because the presentation must work offline. Compression extensions produce warnings to verify decoder support during renderer integration.
+
+This is a metadata inspection tool, not a complete glTF validator. It does not decode geometry, textures, or data URI payloads, validate all accessor references, establish model alignment/units, identify the ground surface, or verify Android rendering. Those checks remain part of the rendering milestone.
+
+Run its dependency-free tests with:
+
+```powershell
+npm run test:terrain
+```
+
 ## Tests
 
 Run the frontend tests from this directory:
