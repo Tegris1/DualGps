@@ -1,0 +1,9 @@
+// Optional Windows build workaround for long checkout paths; used with --init-script.
+gradle.beforeProject { project ->
+    if (project.path == ':app') {
+        project.afterEvaluate {
+            project.android.externalNativeBuild.cmake.buildStagingDirectory =
+                new File(System.getProperty('java.io.tmpdir'), 'dgps-preview-cxx')
+        }
+    }
+}
