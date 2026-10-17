@@ -112,6 +112,8 @@ Use **Change** beside either filename in the preview to return to its selection 
 
 The preview includes a procedural yellow excavator in a fixed pose. A downward raycast places its tracks on the current surface; its presentation proportions scale to the terrain footprint and are not surveyed machine dimensions. A bucket cutting-edge reference is available for the later cross-section. The camera frames the terrain and machine together. Terrain visibility switches leave the machine visible.
 
+`getBucketCrossSections` calculates independent current/target triangle-intersection segments in a vertical plane through the bucket edge, aligned with the machine's digging direction. Each point contains signed horizontal distance from the bucket and world elevation in source-model units. Imported transforms and gaps are preserved; no intersection returns an empty profile. Point tangencies and coplanar triangles are excluded, and shared-edge duplicates are removed. This calculation is ready for the next increment's 2D panel; the preview does not display it yet.
+
 **Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Excavator controls and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
 
 Manual preview check: confirm both models load, switch each layer off/on, rotate in both directions, zoom, select top view, and reset. The models must remain aligned during camera changes. A loading failure displays an error with a retry action. This preview preserves source transforms; surveyed alignment and units still need confirmation against the source project.
