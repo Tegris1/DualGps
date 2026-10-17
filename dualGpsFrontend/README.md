@@ -104,7 +104,11 @@ npx expo start --offline
 
 Press `a` once Metro is ready to open the installed app. The init script only changes generated CMake output placement for that invocation. Offline Metro also avoids a failing remote dependency check by using the installed SDK's local metadata.
 
-Demo mode currently opens the rendering preview directly and does not mount the authentication or GPS providers. Demo login, model selection, the excavator, and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
+Demo mode opens a local sign-in screen and does not mount the backend authentication or GPS providers. Use email `demo@dualgps.local` and password `Demo123!` (also shown on the sign-in screen). This public presentation account makes no backend requests. Its session lives only in memory and resets on a full reload or app restart.
+
+Successful sign-in opens **Choose current terrain**. Select `Original.glb`, then **Open preview**; the button remains disabled until a valid current surface is selected. The catalog reserves `Target.glb` as the fixed target design. Use **Change** beside the current filename in the preview to return to selection. Selection is retained across those screens and cleared on sign-out or app restart.
+
+**Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Target-terrain selection, the excavator, and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
 
 Manual preview check: confirm both models load, switch each layer off/on, rotate in both directions, zoom, select top view, and reset. The models must remain aligned during camera changes. A loading failure displays an error with a retry action. This preview preserves source transforms; surveyed alignment and units still need confirmation against the source project.
 

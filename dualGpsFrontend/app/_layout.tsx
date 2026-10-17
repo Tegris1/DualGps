@@ -1,5 +1,7 @@
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { GpsProvider } from "@/lib/gps-context";
+import { DemoSessionProvider, useDemoSession } from "@/features/demo/session-context";
+import { DemoProjectProvider, useDemoProject } from "@/features/demo/project-context";
 import {
   Stack,
   useNavigationContainerRef,
@@ -10,10 +12,16 @@ import { useEffect } from "react";
 
 const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
 
-function AppNavigator() {
+function AppNavigator({ demoSignedIn = false, hasCurrentTerrain = false }: { demoSignedIn?: boolean; hasCurrentTerrain?: boolean }) {
   return (
     <Stack>
-      <Stack.Protected guard={DEMO_MODE}>
+      <Stack.Protected guard={DEMO_MODE && !demoSignedIn}>
+        <Stack.Screen name="demo-login" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={DEMO_MODE && demoSignedIn}>
+        <Stack.Screen name="demo-current-terrain" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={DEMO_MODE && demoSignedIn && hasCurrentTerrain}>
         <Stack.Screen name="demo-preview" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!DEMO_MODE}>
@@ -56,13 +64,24 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  if (DEMO_MODE) return <AppNavigator />;
+  if (DEMO_MODE) return <DemoSessionProvider><DemoApp /></DemoSessionProvider>;
 
   return (
     <AuthProvider>
       <GpsApp />
     </AuthProvider>
   );
+}
+
+function DemoApp() {
+  const { isSignedIn } = useDemoSession();
+  // A fresh project per session prevents selection leaking across sign-outs.
+  return <DemoProjectProvider key={String(isSignedIn)}><DemoNavigation signedIn={isSignedIn} /></DemoProjectProvider>;
+}
+
+function DemoNavigation({ signedIn }: { signedIn: boolean }) {
+  const { currentTerrain } = useDemoProject();
+  return <AppNavigator demoSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} />;
 }
 
 function GpsApp() {

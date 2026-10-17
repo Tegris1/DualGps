@@ -1,22 +1,27 @@
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { ErrorBoundaryProps } from "expo-router";
+import { type ErrorBoundaryProps, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
 import { CURRENT_COLOR, DEFAULT_VIEW, TARGET_COLOR } from "@/features/demo/preview-models";
 import { clearTerrainPreviewCache, TerrainPreviewScene } from "@/features/demo/terrain-preview-scene";
+import { useDemoSession } from "@/features/demo/session-context";
+import { useDemoProject } from "@/features/demo/project-context";
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const { signOut } = useDemoSession();
+  const { currentTerrain } = useDemoProject();
   return (
     <SafeAreaView style={[styles.screen, styles.error]}>
       <Text style={styles.title}>Could not load terrain preview</Text>
       <Text style={styles.caption}>{error.message}</Text>
       <View style={styles.controls}>
         <Control label="Retry" onPress={() => {
-          clearTerrainPreviewCache();
+          if (currentTerrain) clearTerrainPreviewCache(currentTerrain.asset);
           void retry();
         }} />
+        <Control label="Sign out" onPress={signOut} />
       </View>
     </SafeAreaView>
   );
@@ -39,22 +44,35 @@ function Control({ label, onPress, disabled = false }: {
 }
 
 export default function TerrainPreview() {
+  const { signOut } = useDemoSession();
+  const { currentTerrain } = useDemoProject();
+  const router = useRouter();
   const [view, setView] = useState(DEFAULT_VIEW);
   const [showCurrent, setShowCurrent] = useState(true);
   const [showTarget, setShowTarget] = useState(true);
-  const [loaded, setLoaded] = useState(false);
-  const onLoaded = useCallback(() => setLoaded(true), []);
+  const [loadedModel, setLoadedModel] = useState<number | null>(null);
+  const currentModel = currentTerrain?.asset;
+  const loaded = loadedModel === currentModel;
+  const onLoaded = useCallback(() => setLoadedModel(currentModel ?? null), [currentModel]);
+  if (!currentTerrain) return null;
 
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>DUAL GPS / DEMO</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.eyebrow}>DUAL GPS / DEMO</Text>
+          <Pressable accessibilityRole="button" onPress={signOut} hitSlop={10}>
+            <Text style={styles.signOut}>Sign out</Text>
+          </Pressable>
+        </View>
         <Text style={styles.title}>Terrain preview</Text>
         <Text style={styles.caption}>Current surface and target design</Text>
       </View>
       <View style={styles.viewport}>
         <TerrainPreviewScene
+          key={currentTerrain.id}
+          currentModel={currentTerrain.asset}
           view={view}
           showCurrent={showCurrent}
           showTarget={showTarget}
@@ -75,7 +93,10 @@ export default function TerrainPreview() {
           <View style={[styles.dot, { backgroundColor: CURRENT_COLOR }]} />
           <View style={styles.layerCopy}>
             <Text style={styles.layerTitle}>Current terrain</Text>
-            <Text style={styles.caption}>Original.glb</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Change current terrain"
+              onPress={() => router.navigate("/demo-current-terrain")}>
+              <Text style={styles.caption}>{currentTerrain.filename} / Change</Text>
+            </Pressable>
           </View>
           <Switch accessibilityLabel="Show current terrain" value={showCurrent} onValueChange={setShowCurrent} />
         </View>
@@ -111,6 +132,8 @@ export default function TerrainPreview() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f8fafc" },
   header: { padding: 20, gap: 5 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  signOut: { color: "#0e7490", fontSize: 14, fontWeight: "600" },
   eyebrow: { fontSize: 11, fontWeight: "700", letterSpacing: 2, color: "#64748b" },
   title: { fontSize: 26, fontWeight: "700", color: "#0f172a" },
   caption: { fontSize: 12, color: "#64748b" },
