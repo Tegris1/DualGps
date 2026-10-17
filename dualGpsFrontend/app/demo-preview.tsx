@@ -11,14 +11,14 @@ import { useDemoProject } from "@/features/demo/project-context";
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const { signOut } = useDemoSession();
-  const { currentTerrain } = useDemoProject();
+  const { currentTerrain, targetTerrain } = useDemoProject();
   return (
     <SafeAreaView style={[styles.screen, styles.error]}>
       <Text style={styles.title}>Could not load terrain preview</Text>
       <Text style={styles.caption}>{error.message}</Text>
       <View style={styles.controls}>
         <Control label="Retry" onPress={() => {
-          if (currentTerrain) clearTerrainPreviewCache(currentTerrain.asset);
+          if (currentTerrain && targetTerrain) clearTerrainPreviewCache(currentTerrain, targetTerrain);
           void retry();
         }} />
         <Control label="Sign out" onPress={signOut} />
@@ -45,16 +45,16 @@ function Control({ label, onPress, disabled = false }: {
 
 export default function TerrainPreview() {
   const { signOut } = useDemoSession();
-  const { currentTerrain } = useDemoProject();
+  const { currentTerrain, targetTerrain } = useDemoProject();
   const router = useRouter();
   const [view, setView] = useState(DEFAULT_VIEW);
   const [showCurrent, setShowCurrent] = useState(true);
   const [showTarget, setShowTarget] = useState(true);
-  const [loadedModel, setLoadedModel] = useState<number | null>(null);
-  const currentModel = currentTerrain?.asset;
-  const loaded = loadedModel === currentModel;
-  const onLoaded = useCallback(() => setLoadedModel(currentModel ?? null), [currentModel]);
-  if (!currentTerrain) return null;
+  const [loadedPair, setLoadedPair] = useState<string | null>(null);
+  const modelPair = JSON.stringify([currentTerrain?.id, targetTerrain?.id]);
+  const loaded = loadedPair === modelPair;
+  const onLoaded = useCallback(() => setLoadedPair(modelPair), [modelPair]);
+  if (!currentTerrain || !targetTerrain) return null;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -67,12 +67,13 @@ export default function TerrainPreview() {
           </Pressable>
         </View>
         <Text style={styles.title}>Terrain preview</Text>
-        <Text style={styles.caption}>Current surface and target design</Text>
+        <Text style={styles.caption}>Current surface, target design and demo excavator</Text>
       </View>
       <View style={styles.viewport}>
         <TerrainPreviewScene
-          key={currentTerrain.id}
-          currentModel={currentTerrain.asset}
+          key={modelPair}
+          currentTerrain={currentTerrain}
+          targetTerrain={targetTerrain}
           view={view}
           showCurrent={showCurrent}
           showTarget={showTarget}
@@ -104,7 +105,10 @@ export default function TerrainPreview() {
           <View style={[styles.dot, { backgroundColor: TARGET_COLOR }]} />
           <View style={styles.layerCopy}>
             <Text style={styles.layerTitle}>Target terrain</Text>
-            <Text style={styles.caption}>Target.glb / wireframe overlay</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Change target terrain"
+              onPress={() => router.navigate("/demo-target-terrain")}>
+              <Text style={styles.caption}>{targetTerrain.filename} / Change</Text>
+            </Pressable>
           </View>
           <Switch accessibilityLabel="Show target terrain" value={showTarget} onValueChange={setShowTarget} />
         </View>

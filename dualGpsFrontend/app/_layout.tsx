@@ -12,7 +12,8 @@ import { useEffect } from "react";
 
 const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
 
-function AppNavigator({ demoSignedIn = false, hasCurrentTerrain = false }: { demoSignedIn?: boolean; hasCurrentTerrain?: boolean }) {
+function AppNavigator({ demoSignedIn = false, hasCurrentTerrain = false, hasTargetTerrain = false }:
+  { demoSignedIn?: boolean; hasCurrentTerrain?: boolean; hasTargetTerrain?: boolean }) {
   return (
     <Stack>
       <Stack.Protected guard={DEMO_MODE && !demoSignedIn}>
@@ -22,6 +23,9 @@ function AppNavigator({ demoSignedIn = false, hasCurrentTerrain = false }: { dem
         <Stack.Screen name="demo-current-terrain" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={DEMO_MODE && demoSignedIn && hasCurrentTerrain}>
+        <Stack.Screen name="demo-target-terrain" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={DEMO_MODE && demoSignedIn && hasCurrentTerrain && hasTargetTerrain}>
         <Stack.Screen name="demo-preview" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!DEMO_MODE}>
@@ -80,8 +84,8 @@ function DemoApp() {
 }
 
 function DemoNavigation({ signedIn }: { signedIn: boolean }) {
-  const { currentTerrain } = useDemoProject();
-  return <AppNavigator demoSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} />;
+  const { currentTerrain, targetTerrain } = useDemoProject();
+  return <AppNavigator demoSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} hasTargetTerrain={!!targetTerrain} />;
 }
 
 function GpsApp() {

@@ -4,8 +4,12 @@ export const TERRAIN_CATALOG = [
   { id: "target", name: "Target design", filename: "Target.glb", role: "target", asset: require("../../demo/Target.glb") },
 ] as const;
 
-export const FIXED_TARGET_TERRAIN = TERRAIN_CATALOG[1];
+export type DemoTerrain = typeof TERRAIN_CATALOG[number];
 
 export function getCurrentTerrain(id: string | null) {
   return TERRAIN_CATALOG.find((terrain) => terrain.id === id && terrain.role === "current") ?? null;
+}
+
+export function getTargetTerrain(id: string | null) {
+  return TERRAIN_CATALOG.find((terrain) => terrain.id === id && terrain.role === "target") ?? null;
 }

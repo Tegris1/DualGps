@@ -106,9 +106,13 @@ Press `a` once Metro is ready to open the installed app. The init script only ch
 
 Demo mode opens a local sign-in screen and does not mount the backend authentication or GPS providers. Use email `demo@dualgps.local` and password `Demo123!` (also shown on the sign-in screen). This public presentation account makes no backend requests. Its session lives only in memory and resets on a full reload or app restart.
 
-Successful sign-in opens **Choose current terrain**. Select `Original.glb`, then **Open preview**; the button remains disabled until a valid current surface is selected. The catalog reserves `Target.glb` as the fixed target design. Use **Change** beside the current filename in the preview to return to selection. Selection is retained across those screens and cleared on sign-out or app restart.
+Successful sign-in opens **Choose current terrain**. Select `Original.glb`, continue to **Choose target terrain**, select `Target.glb`, then **Open preview**. Both choices are required, role-validated, and must reference different files. Each step stays disabled until its required selection is valid. The renderer loads both selected catalog entries.
 
-**Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Target-terrain selection, the excavator, and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
+Use **Change** beside either filename in the preview to return to its selection screen. Choices are retained while navigating between screens and cleared on sign-out or app restart. Choosing a different current terrain clears the target choice.
+
+The preview includes a procedural yellow excavator in a fixed pose. A downward raycast places its tracks on the current surface; its presentation proportions scale to the terrain footprint and are not surveyed machine dimensions. A bucket cutting-edge reference is available for the later cross-section. The camera frames the terrain and machine together. Terrain visibility switches leave the machine visible.
+
+**Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Excavator controls and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
 
 Manual preview check: confirm both models load, switch each layer off/on, rotate in both directions, zoom, select top view, and reset. The models must remain aligned during camera changes. A loading failure displays an error with a retry action. This preview preserves source transforms; surveyed alignment and units still need confirmation against the source project.
 

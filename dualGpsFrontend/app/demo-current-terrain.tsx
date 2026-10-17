@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useDemoProject } from "@/features/demo/project-context";
 import { useDemoSession } from "@/features/demo/session-context";
-import { FIXED_TARGET_TERRAIN, TERRAIN_CATALOG } from "@/features/demo/terrain-catalog";
+import { TERRAIN_CATALOG } from "@/features/demo/terrain-catalog";
 
 export default function CurrentTerrainSelection() {
   const { currentTerrain, selectCurrentTerrain } = useDemoProject();
@@ -30,11 +30,10 @@ export default function CurrentTerrainSelection() {
             <Text style={styles.link}>{currentTerrain?.id === terrain.id ? "Selected" : "Select terrain"}</Text>
           </Pressable>
         ))}
-        <Text style={styles.caption}>Target design: {FIXED_TARGET_TERRAIN.filename}</Text>
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: !currentTerrain }}
-          disabled={!currentTerrain} onPress={() => router.push("/demo-preview")}
+          disabled={!currentTerrain} onPress={() => router.push("/demo-target-terrain")}
           style={[styles.button, !currentTerrain && styles.disabled]}>
-          <Text style={styles.buttonText}>Open preview</Text>
+          <Text style={styles.buttonText}>Choose target terrain</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
