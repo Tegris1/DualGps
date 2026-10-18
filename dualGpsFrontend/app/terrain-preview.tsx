@@ -6,12 +6,12 @@ import { StatusBar } from "expo-status-bar";
 
 import { CURRENT_COLOR, DEFAULT_VIEW, TARGET_COLOR } from "@/features/demo/preview-models";
 import { clearTerrainPreviewCache, TerrainPreviewScene } from "@/features/demo/terrain-preview-scene";
-import { useDemoSession } from "@/features/demo/session-context";
-import { useDemoProject } from "@/features/demo/project-context";
+import { useOfflineSession } from "@/features/auth/offline-session-context";
+import { useTerrainProject } from "@/features/demo/project-context";
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
-  const { signOut } = useDemoSession();
-  const { currentTerrain, targetTerrain } = useDemoProject();
+  const { signOut } = useOfflineSession();
+  const { currentTerrain, targetTerrain } = useTerrainProject();
   return (
     <SafeAreaView style={[styles.screen, styles.error]}>
       <Text style={styles.title}>Could not load terrain preview</Text>
@@ -44,8 +44,8 @@ function Control({ label, onPress, disabled = false }: {
 }
 
 export default function TerrainPreview() {
-  const { signOut } = useDemoSession();
-  const { currentTerrain, targetTerrain } = useDemoProject();
+  const { signOut } = useOfflineSession();
+  const { currentTerrain, targetTerrain } = useTerrainProject();
   const router = useRouter();
   const [view, setView] = useState(DEFAULT_VIEW);
   const [showCurrent, setShowCurrent] = useState(true);
@@ -61,13 +61,13 @@ export default function TerrainPreview() {
       <StatusBar style="dark" />
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Text style={styles.eyebrow}>DUAL GPS / DEMO</Text>
+          <Text style={styles.eyebrow}>DUAL GPS</Text>
           <Pressable accessibilityRole="button" onPress={signOut} hitSlop={10}>
             <Text style={styles.signOut}>Sign out</Text>
           </Pressable>
         </View>
         <Text style={styles.title}>Terrain preview</Text>
-        <Text style={styles.caption}>Current surface, target design and demo excavator</Text>
+        <Text style={styles.caption}>Current surface, target design and excavator</Text>
       </View>
       <View style={styles.viewport}>
         <TerrainPreviewScene
@@ -95,7 +95,7 @@ export default function TerrainPreview() {
           <View style={styles.layerCopy}>
             <Text style={styles.layerTitle}>Current terrain</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Change current terrain"
-              onPress={() => router.navigate("/demo-current-terrain")}>
+              onPress={() => router.navigate("/current-terrain")}>
               <Text style={styles.caption}>{currentTerrain.filename} / Change</Text>
             </Pressable>
           </View>
@@ -106,7 +106,7 @@ export default function TerrainPreview() {
           <View style={styles.layerCopy}>
             <Text style={styles.layerTitle}>Target terrain</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Change target terrain"
-              onPress={() => router.navigate("/demo-target-terrain")}>
+              onPress={() => router.navigate("/target-terrain")}>
               <Text style={styles.caption}>{targetTerrain.filename} / Change</Text>
             </Pressable>
           </View>

@@ -99,9 +99,9 @@ These examples use PowerShell. On macOS/Linux, use `curl` in place of `curl.exe`
 ```powershell
 $baseUrl = "http://localhost:8080"
 $account = @{
-    username = "demo"
-    email = "demo@example.com"
-    password = "local-demo-password"
+    username = "operator"
+    email = "operator@example.com"
+    password = "local-example-password"
 }
 Invoke-RestMethod -Method Post -Uri "$baseUrl/api/auth/register" -ContentType "application/json" -Body ($account | ConvertTo-Json)
 

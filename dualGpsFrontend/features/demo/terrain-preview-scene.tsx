@@ -4,8 +4,8 @@ import { PerspectiveCamera } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { getPreviewCamera, preparePreviewModels, type PreviewView } from "./preview-models";
-import type { DemoTerrain } from "./terrain-catalog";
-import { createDemoExcavator } from "./excavator-model";
+import type { Terrain } from "./terrain-catalog";
+import { createExcavator } from "./excavator-model";
 
 // GLTFLoader probes browser versions even with native texture loading. React
 // Native exposes navigator without userAgent; identify it without claiming a browser.
@@ -13,13 +13,13 @@ if (typeof navigator !== "undefined" && typeof navigator.userAgent !== "string")
   Object.defineProperty(navigator, "userAgent", { value: "ReactNative", configurable: true });
 }
 
-export function clearTerrainPreviewCache(current: DemoTerrain, target: DemoTerrain) {
+export function clearTerrainPreviewCache(current: Terrain, target: Terrain) {
   useLoader.clear(GLTFLoader, [current.asset, target.asset]);
 }
 
 type SceneProps = {
-  currentTerrain: DemoTerrain;
-  targetTerrain: DemoTerrain;
+  currentTerrain: Terrain;
+  targetTerrain: Terrain;
   view: PreviewView;
   showCurrent: boolean;
   showTarget: boolean;
@@ -32,7 +32,7 @@ function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget
     () => {
       const terrain = preparePreviewModels(current.scene, target.scene);
       try {
-        const excavator = createDemoExcavator(terrain.current);
+        const excavator = createExcavator(terrain.current);
         terrain.bounds.expandByObject(excavator.model).getBoundingSphere(terrain.sphere);
         return { ...terrain, excavator, dispose: () => { excavator.dispose(); terrain.dispose(); } };
       } catch (error) {

@@ -4,7 +4,7 @@ export const TERRAIN_CATALOG = [
   { id: "target", name: "Target design", filename: "Target.glb", role: "target", asset: require("../../demo/Target.glb") },
 ] as const;
 
-export type DemoTerrain = typeof TERRAIN_CATALOG[number];
+export type Terrain = typeof TERRAIN_CATALOG[number];
 
 export function getCurrentTerrain(id: string | null) {
   return TERRAIN_CATALOG.find((terrain) => terrain.id === id && terrain.role === "current") ?? null;

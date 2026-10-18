@@ -1,7 +1,7 @@
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { GpsProvider } from "@/lib/gps-context";
-import { DemoSessionProvider, useDemoSession } from "@/features/demo/session-context";
-import { DemoProjectProvider, useDemoProject } from "@/features/demo/project-context";
+import { OfflineSessionProvider, useOfflineSession } from "@/features/auth/offline-session-context";
+import { TerrainProjectProvider, useTerrainProject } from "@/features/demo/project-context";
 import {
   Stack,
   useNavigationContainerRef,
@@ -10,25 +10,25 @@ import {
 } from "expo-router";
 import { useEffect } from "react";
 
-const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+const OFFLINE_MODE = process.env.EXPO_PUBLIC_OFFLINE_MODE === "true";
 
-function AppNavigator({ demoSignedIn = false, hasCurrentTerrain = false, hasTargetTerrain = false }:
-  { demoSignedIn?: boolean; hasCurrentTerrain?: boolean; hasTargetTerrain?: boolean }) {
+function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false, hasTargetTerrain = false }:
+  { offlineSignedIn?: boolean; hasCurrentTerrain?: boolean; hasTargetTerrain?: boolean }) {
   return (
     <Stack>
-      <Stack.Protected guard={DEMO_MODE && !demoSignedIn}>
-        <Stack.Screen name="demo-login" options={{ headerShown: false }} />
+      <Stack.Protected guard={OFFLINE_MODE && !offlineSignedIn}>
+        <Stack.Screen name="offline-login" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={DEMO_MODE && demoSignedIn}>
-        <Stack.Screen name="demo-current-terrain" options={{ headerShown: false }} />
+      <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn}>
+        <Stack.Screen name="current-terrain" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={DEMO_MODE && demoSignedIn && hasCurrentTerrain}>
-        <Stack.Screen name="demo-target-terrain" options={{ headerShown: false }} />
+      <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn && hasCurrentTerrain}>
+        <Stack.Screen name="target-terrain" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={DEMO_MODE && demoSignedIn && hasCurrentTerrain && hasTargetTerrain}>
-        <Stack.Screen name="demo-preview" options={{ headerShown: false }} />
+      <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn && hasCurrentTerrain && hasTargetTerrain}>
+        <Stack.Screen name="terrain-preview" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!DEMO_MODE}>
+      <Stack.Protected guard={!OFFLINE_MODE}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" />
         <Stack.Screen name="modal" />
@@ -68,7 +68,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  if (DEMO_MODE) return <DemoSessionProvider><DemoApp /></DemoSessionProvider>;
+  if (OFFLINE_MODE) return <OfflineSessionProvider><OfflineApp /></OfflineSessionProvider>;
 
   return (
     <AuthProvider>
@@ -77,15 +77,15 @@ export default function RootLayout() {
   );
 }
 
-function DemoApp() {
-  const { isSignedIn } = useDemoSession();
+function OfflineApp() {
+  const { isSignedIn } = useOfflineSession();
   // A fresh project per session prevents selection leaking across sign-outs.
-  return <DemoProjectProvider key={String(isSignedIn)}><DemoNavigation signedIn={isSignedIn} /></DemoProjectProvider>;
+  return <TerrainProjectProvider key={String(isSignedIn)}><OfflineNavigation signedIn={isSignedIn} /></TerrainProjectProvider>;
 }
 
-function DemoNavigation({ signedIn }: { signedIn: boolean }) {
-  const { currentTerrain, targetTerrain } = useDemoProject();
-  return <AppNavigator demoSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} hasTargetTerrain={!!targetTerrain} />;
+function OfflineNavigation({ signedIn }: { signedIn: boolean }) {
+  const { currentTerrain, targetTerrain } = useTerrainProject();
+  return <AppNavigator offlineSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} hasTargetTerrain={!!targetTerrain} />;
 }
 
 function GpsApp() {

@@ -56,7 +56,7 @@ The correction stream runs directly between the phone, caster, and receiver. The
 
 For this app's intended RTK setup, **two GNSS receivers are required, each supporting at least L1 and L2 frequencies**, to establish an RTK fix.
 
-For a full hardware demo, also use an Android phone, Bluetooth Classic connectivity to the receiver, internet access, and credentials for an NTRIP service. An emulator can help review the UI and authentication; the receiver workflow needs real hardware and a native app build.
+For the full hardware workflow, also use an Android phone, Bluetooth Classic connectivity to the receiver, internet access, and credentials for an NTRIP service. An emulator can help review the UI and authentication; the receiver workflow needs real hardware and a native app build.
 
 ### Backend
 

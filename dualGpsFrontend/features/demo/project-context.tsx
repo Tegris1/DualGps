@@ -1,15 +1,15 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { getCurrentTerrain, getTargetTerrain } from "./terrain-catalog";
 
-type DemoProject = {
+type TerrainProject = {
   currentTerrain: ReturnType<typeof getCurrentTerrain>;
   targetTerrain: ReturnType<typeof getTargetTerrain>;
   selectCurrentTerrain: (id: string) => boolean;
   selectTargetTerrain: (id: string) => boolean;
 };
-const DemoProjectContext = createContext<DemoProject | undefined>(undefined);
+const TerrainProjectContext = createContext<TerrainProject | undefined>(undefined);
 
-export function DemoProjectProvider({ children }: { children: ReactNode }) {
+export function TerrainProjectProvider({ children }: { children: ReactNode }) {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   function selectCurrentTerrain(id: string) {
@@ -26,15 +26,15 @@ export function DemoProjectProvider({ children }: { children: ReactNode }) {
     return true;
   }
   return (
-    <DemoProjectContext.Provider value={{ currentTerrain: getCurrentTerrain(currentId),
+    <TerrainProjectContext.Provider value={{ currentTerrain: getCurrentTerrain(currentId),
       targetTerrain: getTargetTerrain(targetId), selectCurrentTerrain, selectTargetTerrain }}>
       {children}
-    </DemoProjectContext.Provider>
+    </TerrainProjectContext.Provider>
   );
 }
 
-export function useDemoProject() {
-  const project = useContext(DemoProjectContext);
-  if (!project) throw new Error("useDemoProject requires DemoProjectProvider");
+export function useTerrainProject() {
+  const project = useContext(TerrainProjectContext);
+  if (!project) throw new Error("useTerrainProject requires TerrainProjectProvider");
   return project;
 }
