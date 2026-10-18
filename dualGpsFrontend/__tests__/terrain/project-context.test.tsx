@@ -1,9 +1,9 @@
 import { expect, it, jest } from "@jest/globals";
 import { act } from "react";
-import { TerrainProjectProvider, useTerrainProject } from "../../features/demo/project-context";
+import { TerrainProjectProvider, useTerrainProject } from "../../features/terrain/project-context";
 
-jest.mock("../../demo/Original.glb", () => 11);
-jest.mock("../../demo/Target.glb", () => 12);
+jest.mock("../../assets/terrain/Original.glb", () => 11);
+jest.mock("../../assets/terrain/Target.glb", () => 12);
 const { create } = require("react-test-renderer");
 
 it("requires two distinct role-valid surfaces, preserves selections on invalid input, and resets for a new session", async () => {

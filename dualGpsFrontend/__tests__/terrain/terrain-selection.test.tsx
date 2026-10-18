@@ -5,10 +5,10 @@ import { Text } from "react-native";
 import CurrentTerrainSelection from "../../app/current-terrain";
 import TargetTerrainSelection from "../../app/target-terrain";
 import { OFFLINE_ACCOUNT, OfflineSessionProvider, useOfflineSession } from "../../features/auth/offline-session-context";
-import { TerrainProjectProvider, useTerrainProject } from "../../features/demo/project-context";
+import { TerrainProjectProvider, useTerrainProject } from "../../features/terrain/project-context";
 
-jest.mock("../../demo/Original.glb", () => 11);
-jest.mock("../../demo/Target.glb", () => 12);
+jest.mock("../../assets/terrain/Original.glb", () => 11);
+jest.mock("../../assets/terrain/Target.glb", () => 12);
 jest.mock("expo-router", () => ({ useRouter: () => mockRouter }));
 jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
 

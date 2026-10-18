@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
 
-import { DEFAULT_VIEW, getPreviewCamera, preparePreviewModels } from "../../features/demo/preview-models";
+import { DEFAULT_VIEW, getPreviewCamera, preparePreviewModels } from "../../features/terrain/preview-models";
 
 function terrain(x: number) {
   const root = new Group();

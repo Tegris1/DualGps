@@ -1,9 +1,9 @@
 import { useRouter } from "expo-router";
 
 import { useOfflineSession } from "@/features/auth/offline-session-context";
-import { TerrainSelectionScreen } from "@/features/demo/components/terrain-selection-screen";
-import { useTerrainProject } from "@/features/demo/project-context";
-import { TERRAIN_CATALOG } from "@/features/demo/terrain-catalog";
+import { TerrainSelectionScreen } from "@/features/terrain/components/terrain-selection-screen";
+import { useTerrainProject } from "@/features/terrain/project-context";
+import { TERRAIN_CATALOG } from "@/features/terrain/terrain-catalog";
 
 export default function CurrentTerrainSelection() {
   const { currentTerrain, selectCurrentTerrain } = useTerrainProject();

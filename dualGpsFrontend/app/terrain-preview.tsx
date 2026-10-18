@@ -4,10 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { type ErrorBoundaryProps, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
-import { CURRENT_COLOR, DEFAULT_VIEW, TARGET_COLOR } from "@/features/demo/preview-models";
-import { clearTerrainPreviewCache, TerrainPreviewScene } from "@/features/demo/terrain-preview-scene";
+import { CURRENT_COLOR, DEFAULT_VIEW, TARGET_COLOR } from "@/features/terrain/preview-models";
+import { clearTerrainPreviewCache, TerrainPreviewScene } from "@/features/terrain/terrain-preview-scene";
 import { useOfflineSession } from "@/features/auth/offline-session-context";
-import { useTerrainProject } from "@/features/demo/project-context";
+import { useTerrainProject } from "@/features/terrain/project-context";
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const { signOut } = useOfflineSession();

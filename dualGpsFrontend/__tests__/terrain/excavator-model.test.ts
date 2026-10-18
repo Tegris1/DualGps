@@ -1,6 +1,6 @@
 import { expect, it, jest } from "@jest/globals";
 import { Box3, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from "three";
-import { createExcavator } from "../../features/demo/excavator-model";
+import { createExcavator } from "../../features/terrain/excavator-model";
 
 it("grounds the excavator on transformed terrain and exposes the bucket edge in world coordinates", () => {
   const terrain = new Group();
