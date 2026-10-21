@@ -81,6 +81,8 @@ The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-seri
 
 The terrain preview displays the bundled `demo/Original.glb` and `demo/Target.glb` together. It provides layer switches, camera rotation, zoom, a top view, and reset. The current surface is brown; the target is a cyan wireframe overlay that stays visible through the current surface. Both models retain their exported placement and rotation, and the camera fits their combined bounds.
 
+The `current-terrain` and `target-terrain` routes share `TerrainSelectionScreen` and `TerrainOptionCard` under `features/demo/components`. The routes own terrain filtering and navigation; the shared components render the layout, selection state, and continue action. Terrain state and rendering also live under `features/terrain`, while the local sign-in session lives under `features/auth`.
+
 From this directory, run in PowerShell:
 
 ```powershell
