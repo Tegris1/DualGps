@@ -1,7 +1,7 @@
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { GpsProvider } from "@/lib/gps-context";
 import { OfflineSessionProvider, useOfflineSession } from "@/features/auth/offline-session-context";
-import { TerrainProjectProvider, useTerrainProject } from "@/features/demo/project-context";
+import { TerrainProjectProvider, useTerrainProject } from "@/features/terrain/project-context";
 import {
   Stack,
   useNavigationContainerRef,

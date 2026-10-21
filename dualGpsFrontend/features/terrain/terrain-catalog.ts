@@ -1,7 +1,7 @@
 // Static references keep model resources bundled with the Android app.
 export const TERRAIN_CATALOG = [
-  { id: "original", name: "Original terrain", filename: "Original.glb", role: "current", asset: require("../../demo/Original.glb") },
-  { id: "target", name: "Target design", filename: "Target.glb", role: "target", asset: require("../../demo/Target.glb") },
+  { id: "original", name: "Original terrain", filename: "Original.glb", role: "current", asset: require("../../assets/terrain/Original.glb") },
+  { id: "target", name: "Target design", filename: "Target.glb", role: "target", asset: require("../../assets/terrain/Target.glb") },
 ] as const;
 
 export type Terrain = typeof TERRAIN_CATALOG[number];

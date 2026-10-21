@@ -1,6 +1,6 @@
 import { expect, it } from "@jest/globals";
 import { BufferGeometry, Float32BufferAttribute, Group, Mesh, Object3D, Vector3 } from "three";
-import { getBucketCrossSections, getTerrainCrossSection } from "../../features/demo/terrain-cross-section";
+import { getBucketCrossSections, getTerrainCrossSection } from "../../features/terrain/terrain-cross-section";
 
 function patch(indexed = true) {
   const geometry = new BufferGeometry();
