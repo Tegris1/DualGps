@@ -2,29 +2,29 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { DEMO_ACCOUNT, useDemoSession } from "@/features/demo/session-context";
+import { OFFLINE_ACCOUNT, useOfflineSession } from "@/features/auth/offline-session-context";
 
-export default function DemoLogin() {
-  const { signIn } = useDemoSession();
+export default function OfflineLogin() {
+  const { signIn } = useOfflineSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   function submit() {
-    setError(signIn(email, password) ? "" : "Incorrect demo email or password.");
+    setError(signIn(email, password) ? "" : "Incorrect email or password.");
   }
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <Text style={styles.eyebrow}>DUAL GPS / DEMO</Text>
-        <Text style={styles.title}>Sign in to the demo</Text>
+        <Text style={styles.eyebrow}>DUAL GPS</Text>
+        <Text style={styles.title}>Sign in</Text>
         <Text style={styles.caption}>Explore current and target terrain.</Text>
         <Text style={styles.label}>Email</Text>
-        <TextInput accessibilityLabel="Demo email" style={styles.input}
+        <TextInput accessibilityLabel="Email" style={styles.input}
           value={email} onChangeText={setEmail} keyboardType="email-address"
           autoCapitalize="none" autoCorrect={false} autoComplete="off" />
         <Text style={styles.label}>Password</Text>
-        <TextInput accessibilityLabel="Demo password" style={styles.input}
+        <TextInput accessibilityLabel="Password" style={styles.input}
           value={password} onChangeText={setPassword} secureTextEntry
           autoCapitalize="none" autoCorrect={false} autoComplete="off"
           returnKeyType="go" onSubmitEditing={submit} />
@@ -33,8 +33,8 @@ export default function DemoLogin() {
           style={({ pressed }) => [styles.button, pressed && { opacity: 0.7 }]}>
           <Text style={styles.buttonText}>Sign in</Text>
         </Pressable>
-        <Text style={styles.caption}>Offline presentation account</Text>
-        <Text selectable style={styles.credentials}>{DEMO_ACCOUNT.email}{"\n"}{DEMO_ACCOUNT.password}</Text>
+        <Text style={styles.caption}>Offline account</Text>
+        <Text selectable style={styles.credentials}>{OFFLINE_ACCOUNT.email}{"\n"}{OFFLINE_ACCOUNT.password}</Text>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

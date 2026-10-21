@@ -79,19 +79,19 @@ The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-seri
 
 ## Terrain rendering preview
 
-The next demo increment displays the bundled `demo/Original.glb` and `demo/Target.glb` together. It provides layer switches, camera rotation, zoom, a top view, and reset. The current surface is brown; the target is a cyan wireframe overlay that stays visible through the current surface. Both models retain their exported placement and rotation, and the camera fits their combined bounds.
+The terrain preview displays the bundled `demo/Original.glb` and `demo/Target.glb` together. It provides layer switches, camera rotation, zoom, a top view, and reset. The current surface is brown; the target is a cyan wireframe overlay that stays visible through the current surface. Both models retain their exported placement and rotation, and the camera fits their combined bounds.
 
 From this directory, run in PowerShell:
 
 ```powershell
 npm ci
-$env:EXPO_PUBLIC_DEMO_MODE = "true"
+$env:EXPO_PUBLIC_OFFLINE_MODE = "true"
 npx expo run:android
 ```
 
-Rebuild the native app after installing the new GL and file-system modules; restarting Metro alone cannot add them to an existing binary. Subsequent JavaScript changes can use `npm start` with the same demo environment variable. For development, the Android emulator connects to the local Metro server; models are bundled and require no external asset service.
+Rebuild the native app after installing the new GL and file-system modules; restarting Metro alone cannot add them to an existing binary. Subsequent JavaScript changes can use `npm start` with the same offline environment variable. For development, the Android emulator connects to the local Metro server; models are bundled and require no external asset service.
 
-On Windows, a long checkout path can cause Ninja to report `Filename longer than 260 characters` during native compilation. Use a short checkout path, such as `C:\src\DualGps`, or use the included Gradle init script. For an x86_64 Android emulator, with the demo environment variable still set:
+On Windows, a long checkout path can cause Ninja to report `Filename longer than 260 characters` during native compilation. Use a short checkout path, such as `C:\src\DualGps`, or use the included Gradle init script. For an x86_64 Android emulator, with the offline environment variable still set:
 
 ```powershell
 npx expo prebuild --platform android
@@ -104,7 +104,7 @@ npx expo start --offline
 
 Press `a` once Metro is ready to open the installed app. The init script only changes generated CMake output placement for that invocation. Offline Metro also avoids a failing remote dependency check by using the installed SDK's local metadata.
 
-Demo mode opens a local sign-in screen and does not mount the backend authentication or GPS providers. Use email `demo@dualgps.local` and password `Demo123!` (also shown on the sign-in screen). This public presentation account makes no backend requests. Its session lives only in memory and resets on a full reload or app restart.
+Offline mode opens a local sign-in screen and does not mount the backend authentication or GPS providers. Use email `offline@dualgps.local` and password `Offline123!` (also shown on the sign-in screen). This public presentation account makes no backend requests. Its session lives only in memory and resets on a full reload or app restart.
 
 Successful sign-in opens **Choose current terrain**. Select `Original.glb`, continue to **Choose target terrain**, select `Target.glb`, then **Open preview**. Both choices are required, role-validated, and must reference different files. Each step stays disabled until its required selection is valid. The renderer loads both selected catalog entries.
 
@@ -114,15 +114,15 @@ The preview includes a procedural yellow excavator in a fixed pose. A downward r
 
 `getBucketCrossSections` calculates independent current/target triangle-intersection segments in a vertical plane through the bucket edge, aligned with the machine's digging direction. Each point contains signed horizontal distance from the bucket and world elevation in source-model units. Imported transforms and gaps are preserved; no intersection returns an empty profile. Point tangencies and coplanar triangles are excluded, and shared-edge duplicates are removed. This calculation is ready for the next increment's 2D panel; the preview does not display it yet.
 
-**Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Excavator controls and cross-sections are later increments. Set `EXPO_PUBLIC_DEMO_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
+**Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Excavator controls and cross-sections are later increments. Set `EXPO_PUBLIC_OFFLINE_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
 
 Manual preview check: confirm both models load, switch each layer off/on, rotate in both directions, zoom, select top view, and reset. The models must remain aligned during camera changes. A loading failure displays an error with a retry action. This preview preserves source transforms; surveyed alignment and units still need confirmation against the source project.
 
-Verified on an x86_64 Android API 37 emulator at 1080 x 2424 pixels, using React 19.1, Expo SDK 54, React Three Fiber 9.4.2, and Three.js 0.180.0. The existing normal-mode sign-in screen was also checked with demo mode disabled.
+Verified on an x86_64 Android API 37 emulator at 1080 x 2424 pixels, using React 19.1, Expo SDK 54, React Three Fiber 9.4.2, and Three.js 0.180.0. The existing normal-mode sign-in screen was also checked with offline mode disabled.
 
 ## Terrain asset inspection
 
-Before adding models to the terrain demo, inspect their packaging and mesh metadata:
+Before adding models to the terrain catalog, inspect their packaging and mesh metadata:
 
 ```powershell
 npm run inspect:terrain -- "C:\Models\current.glb" "C:\Models\target.gltf"

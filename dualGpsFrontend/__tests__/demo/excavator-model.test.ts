@@ -1,6 +1,6 @@
 import { expect, it, jest } from "@jest/globals";
 import { Box3, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from "three";
-import { createDemoExcavator } from "../../features/demo/excavator-model";
+import { createExcavator } from "../../features/demo/excavator-model";
 
 it("grounds the excavator on transformed terrain and exposes the bucket edge in world coordinates", () => {
   const terrain = new Group();
@@ -10,7 +10,7 @@ it("grounds the excavator on transformed terrain and exposes the bucket edge in 
   terrain.position.set(100, 7, -50);
   terrain.rotation.y = Math.PI / 6;
   terrain.scale.setScalar(2);
-  const excavator = createDemoExcavator(terrain);
+  const excavator = createExcavator(terrain);
   try {
     expect(excavator.model.position.y).toBeCloseTo(7);
     expect(new Box3().setFromObject(excavator.model).min.y).toBeCloseTo(7);
@@ -29,7 +29,7 @@ it("grounds the excavator on transformed terrain and exposes the bucket edge in 
 });
 
 it("rejects empty terrain and a footprint with no ground beneath it", () => {
-  expect(() => createDemoExcavator(new Group())).toThrow("footprint");
+  expect(() => createExcavator(new Group())).toThrow("footprint");
   const terrain = new Group();
   const geometry = new PlaneGeometry(4, 4);
   const material = new MeshBasicMaterial();
@@ -39,6 +39,6 @@ it("rejects empty terrain and a footprint with no ground beneath it", () => {
     patch.position.x = x;
     terrain.add(patch);
   }
-  try { expect(() => createDemoExcavator(terrain)).toThrow("No current terrain surface"); }
+  try { expect(() => createExcavator(terrain)).toThrow("No current terrain surface"); }
   finally { geometry.dispose(); material.dispose(); }
 });

@@ -1,7 +1,7 @@
 import { Box3, BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3 } from "three";
 
 // Presentation proportions, scaled to the terrain footprint; not surveyed dimensions.
-export function createDemoExcavator(terrain: Object3D) {
+export function createExcavator(terrain: Object3D) {
   terrain.updateWorldMatrix(true, true);
   const bounds = new Box3().setFromObject(terrain);
   const size = bounds.getSize(new Vector3());
@@ -13,10 +13,10 @@ export function createDemoExcavator(terrain: Object3D) {
   origin.x -= size.x * 0.12;
   origin.y = bounds.max.y + Math.max(size.y, scale);
   const hit = new Raycaster(origin, new Vector3(0, -1, 0)).intersectObject(terrain, true)[0];
-  if (!hit) throw new Error("No current terrain surface beneath the demo excavator.");
+  if (!hit) throw new Error("No current terrain surface beneath the excavator.");
 
   const model = new Group();
-  model.name = "Demo excavator";
+  model.name = "Excavator";
   model.position.copy(hit.point);
   model.scale.setScalar(scale);
   const yellow = new MeshStandardMaterial({ color: "#f5b51b", roughness: 0.65 });
