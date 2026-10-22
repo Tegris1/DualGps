@@ -2,12 +2,12 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
+import { GnssSolutionDetails } from "@/components/gps/gnss-solution-details";
 import type { BluetoothSerialController } from "@/hooks/use-bluetooth-serial";
 
 import { SectionIntro } from "./settings-controls";
 import { styles } from "./styles";
-
-import { fixLabel } from "@/lib/gps/nmea";
+import { SettingsCard } from "./settings-card";
 
 export function DebugConsole({
   bluetooth,
@@ -39,51 +39,15 @@ export function DebugConsole({
       showsVerticalScrollIndicator={false}
       style={styles.flex}
     >
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>GNSS solution</Text>
-        <Text style={styles.cardCaption}>
-          Position and fix quality reported by the receiver
-        </Text>
-
-        <View style={{ gap: 7, marginTop: 14 }}>
-          <Text>
-            Fix:{" "}
-            {latestFix
-              ? `${fixLabel(latestFix.quality)} (${latestFix.quality})`
-              : "Waiting for GGA"}
-          </Text>
-
-          <Text>
-            Latitude:{" "}
-            {latestFix?.latitude !== undefined
-              ? `${latestFix.latitude.toFixed(8)}°`
-              : "—"}
-          </Text>
-
-          <Text>
-            Longitude:{" "}
-            {latestFix?.longitude !== undefined
-              ? `${latestFix.longitude.toFixed(8)}°`
-              : "—"}
-          </Text>
-
-          <Text>
-            Altitude:{" "}
-            {latestFix?.altitude !== undefined
-              ? `${latestFix.altitude.toFixed(3)} m`
-              : "—"}
-          </Text>
-
-          <Text>Satellites: {latestFix?.satellites ?? "—"}</Text>
-          <Text>HDOP: {latestFix?.hdop ?? gsaDop?.hdop ?? "—"}</Text>
-          <Text>VDOP: {gsaDop?.vdop ?? "—"}</Text>
-          <Text>PDOP: {gsaDop?.pdop ?? "—"}</Text>
-          <Text>Last sentence: {latestLine || "—"}</Text>
-        </View>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>NTRIP corrections</Text>
-
+      <SettingsCard title="GNSS solution" caption="Position and fix quality reported by the receiver">
+        <GnssSolutionDetails
+          latestFix={latestFix}
+          gsaDop={gsaDop}
+          latestLine={latestLine}
+          style={{ marginTop: 14 }}
+        />
+      </SettingsCard>
+      <SettingsCard title="NTRIP corrections">
         <View style={{ gap: 7, marginTop: 14 }}>
           <Text>State: {ntripStatus.state}</Text>
 
@@ -110,7 +74,7 @@ export function DebugConsole({
               : "Not sent yet"}
           </Text>
         </View>
-      </View>
+      </SettingsCard>
       <SectionIntro
         icon="terminal"
         title="Serial monitor"

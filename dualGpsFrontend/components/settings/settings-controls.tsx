@@ -1,5 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -37,10 +37,14 @@ export function SectionIntro({
 export function FormField({
   icon,
   label,
+  trailing,
+  style,
+  accessibilityLabel = label,
   ...props
 }: ComponentProps<typeof TextInput> & {
   icon: IconName;
   label: string;
+  trailing?: ReactNode;
 }) {
   return (
     <View style={styles.formGroup}>
@@ -48,32 +52,51 @@ export function FormField({
       <View style={styles.inputShell}>
         <MaterialIcons name={icon} size={20} color="#64748B" />
         <TextInput
+          accessibilityLabel={accessibilityLabel}
           autoCapitalize="none"
           autoCorrect={false}
           placeholderTextColor="#94A3B8"
-          style={styles.input}
+          style={[styles.input, style]}
           {...props}
         />
+        {trailing}
       </View>
     </View>
   );
 }
 
-export function InfoBanner({
-  positive,
-  message,
-}: {
-  positive: boolean;
+const bannerAppearance = {
+  success: { icon: "check-circle", color: "#059669" },
+  info: { icon: "info-outline", color: "#64748B" },
+  error: { icon: "error-outline", color: "#DC2626" },
+} as const;
+
+export function InfoBanner({ variant, message }: {
+  variant: keyof typeof bannerAppearance;
   message: string;
 }) {
+  const appearance = bannerAppearance[variant];
   return (
-    <View style={styles.infoBanner}>
+    <View
+      accessible
+      accessibilityLabel={message}
+      accessibilityRole={variant === "error" ? "alert" : undefined}
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.infoBanner,
+        variant === "success" && styles.infoBannerSuccess,
+        variant === "error" && styles.infoBannerError,
+      ]}
+    >
       <MaterialIcons
-        name={positive ? "check-circle" : "info-outline"}
+        accessible={false}
+        name={appearance.icon}
         size={20}
-        color={positive ? "#059669" : "#64748B"}
+        color={appearance.color}
       />
-      <Text style={styles.infoBannerText}>{message}</Text>
+      <Text style={[styles.infoBannerText, variant === "error" && styles.infoBannerErrorText]}>
+        {message}
+      </Text>
     </View>
   );
 }

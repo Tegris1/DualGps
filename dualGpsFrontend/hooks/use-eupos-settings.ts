@@ -6,10 +6,11 @@ import { createSecureStorage } from "@/lib/secure-storage";
 
 const STORAGE_KEY = "dualgps.asg-eupos-settings";
 const settingsStorage = createSecureStorage("local");
+type SaveFeedback = { status: "success" | "error"; message: string };
 
 export function useEuposSettings() {
   const [settings, setSettings] = useState<EuposSettings>(DEFAULT_EUPOS_SETTINGS);
-  const [saveMessage, setSaveMessage] = useState("");
+  const [saveFeedback, setSaveFeedback] = useState<SaveFeedback | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -22,28 +23,28 @@ export function useEuposSettings() {
     key: Key,
     value: EuposSettings[Key],
   ) {
-    setSaveMessage("");
+    setSaveFeedback(null);
     setSettings((current) => ({ ...current, [key]: value }));
   }
 
   async function save() {
     setIsSaving(true);
-    setSaveMessage("");
+    setSaveFeedback(null);
 
     try {
       const connectionSettings = toNtripSettings(settings);
       const normalized = { ...connectionSettings, port: String(connectionSettings.port) };
       await settingsStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       setSettings(normalized);
-      setSaveMessage("ASG-EUPOS settings saved.");
+      setSaveFeedback({ status: "success", message: "ASG-EUPOS settings saved." });
     } catch (error) {
-      setSaveMessage("Could not save settings: " + String(error));
+      setSaveFeedback({ status: "error", message: "Could not save settings: " + String(error) });
     } finally {
       setIsSaving(false);
     }
   }
 
-  return { isSaving, save, saveMessage, settings, update };
+  return { isSaving, save, saveFeedback, settings, update };
 }
 
 export type EuposSettingsController = ReturnType<typeof useEuposSettings>;

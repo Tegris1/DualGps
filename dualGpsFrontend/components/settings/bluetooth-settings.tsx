@@ -7,6 +7,8 @@ import {
   View,
 } from "react-native";
 
+import { ReceiverDeviceList } from "@/components/gps/receiver-device-list";
+import { ReceiverProfileSelector } from "@/components/gps/receiver-profile-selector";
 import type { BluetoothSerialController } from "@/hooks/use-bluetooth-serial";
 
 import {
@@ -16,6 +18,7 @@ import {
   SectionIntro,
 } from "./settings-controls";
 import { styles } from "./styles";
+import { SettingsCard } from "./settings-card";
 
 export function BluetoothSettings({
   bluetooth,
@@ -52,59 +55,24 @@ export function BluetoothSettings({
         description="Select a paired GNSS receiver to start a serial connection."
       />
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Receiver profile</Text>
-        <Text style={styles.cardCaption}>
-          Select the receiver before connecting so its serial port is configured
-          correctly.
-        </Text>
-        <View style={styles.profileRow}>
-          {(["topcon", "kolida"] as const).map((model) => {
-            const selected = receiverModel === model;
-            return (
-              <Pressable
-                disabled={!!connectedDevice}
-                key={model}
-                onPress={() => selectReceiverModel(model)}
-                style={({ pressed }) => [
-                  styles.profileButton,
-                  selected && styles.profileButtonSelected,
-                  connectedDevice && styles.buttonDisabled,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <MaterialIcons
-                  name={selected ? "radio-button-checked" : "radio-button-unchecked"}
-                  size={20}
-                  color={selected ? "#0284C7" : "#64748B"}
-                />
-                <Text
-                  style={[
-                    styles.profileButtonText,
-                    selected && styles.profileButtonTextSelected,
-                  ]}
-                >
-                  {model === "topcon" ? "Topcon" : "Kolida"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {receiverModel === "kolida" && (
-          <Text style={styles.profileHint}>
-            Kolida automatic setup is not implemented; configure NMEA output and
-            RTCM 3 input on the receiver first.
-          </Text>
-        )}
-      </View>
+      <SettingsCard
+        title="Receiver profile"
+        caption="Select the receiver before connecting so its serial port is configured correctly."
+      >
+        <ReceiverProfileSelector
+          value={receiverModel}
+          disabled={!!connectedDevice}
+          onChange={selectReceiverModel}
+        />
+      </SettingsCard>
 
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View>
-            <Text style={styles.cardTitle}>Paired devices</Text>
-            <Text style={styles.cardCaption}>Classic Bluetooth devices</Text>
-          </View>
+      <SettingsCard
+        title="Paired devices"
+        caption="Classic Bluetooth devices"
+        headerAction={
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh paired devices"
             disabled={isRefreshing}
             onPress={() => void refreshDevices()}
             style={({ pressed }) => [
@@ -119,81 +87,24 @@ export function BluetoothSettings({
             )}
             <Text style={styles.refreshButtonText}>Refresh</Text>
           </Pressable>
-        </View>
-
-        {devices.length === 0 ? (
-          <View style={styles.emptyState}>
-            <MaterialIcons name="devices" size={34} color="#94A3B8" />
-            <Text style={styles.emptyStateTitle}>No devices loaded</Text>
-            <Text style={styles.emptyStateText}>
-              Tap Refresh to check receivers already paired with this device.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.deviceList}>
-            {devices.map((device) => {
-              const selected = device.address === selectedAddress;
-              const connected = device.address === connectedDevice?.address;
-
-              return (
-                <Pressable
-                  key={device.address}
-                  onPress={() => selectDevice(device.address)}
-                  style={({ pressed }) => [
-                    styles.deviceRow,
-                    selected && styles.deviceRowSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.deviceIcon,
-                      selected && styles.deviceIconSelected,
-                    ]}
-                  >
-                    <MaterialIcons
-                      name="gps-fixed"
-                      size={22}
-                      color={selected ? "#0284C7" : "#64748B"}
-                    />
-                  </View>
-                  <View style={styles.deviceDetails}>
-                    <Text style={styles.deviceName}>
-                      {device.name ?? "Unnamed receiver"}
-                    </Text>
-                    <Text style={styles.deviceAddress}>{device.address}</Text>
-                  </View>
-                  {connected ? (
-                    <View style={styles.connectedBadge}>
-                      <View style={styles.connectedBadgeDot} />
-                      <Text style={styles.connectedBadgeText}>Connected</Text>
-                    </View>
-                  ) : (
-                    <MaterialIcons
-                      name={
-                        selected
-                          ? "radio-button-checked"
-                          : "radio-button-unchecked"
-                      }
-                      size={22}
-                      color={selected ? "#0EA5E9" : "#CBD5E1"}
-                    />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </View>
+        }
+      >
+        <ReceiverDeviceList
+          devices={devices}
+          selectedAddress={selectedAddress}
+          connectedAddress={connectedDevice?.address}
+          onSelect={selectDevice}
+        />
+      </SettingsCard>
 
       <InfoBanner
-        positive={!!connectedDevice}
+        variant={connectedDevice ? "success" : "info"}
         message={connectionMessage}
       />
 
       {!!connectedDevice && (
         <InfoBanner
-          positive={ntripStatus.state === "streaming"}
+          variant={ntripStatus.state === "streaming" ? "success" : ntripStatus.state === "error" ? "error" : "info"}
           message={
             ntripStatus.state === "streaming"
               ? `${ntripStatus.message ?? "NTRIP corrections active"} ${ntripStatus.rtcm.validFrames} valid RTCM frames, ${ntripStatus.bytesSentToReceiver} bytes forwarded.`

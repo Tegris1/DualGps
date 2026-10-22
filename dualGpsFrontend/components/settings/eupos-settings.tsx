@@ -5,7 +5,6 @@ import {
   ScrollView,
   Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
@@ -18,6 +17,7 @@ import {
   SectionIntro,
 } from "./settings-controls";
 import { styles } from "./styles";
+import { SettingsCard } from "./settings-card";
 
 export function EuposSettings({
   controller,
@@ -25,7 +25,7 @@ export function EuposSettings({
   controller: EuposSettingsController;
 }) {
   const [showPassword, setShowPassword] = useState(false);
-  const { isSaving, save, saveMessage, settings, update } = controller;
+  const { isSaving, save, saveFeedback, settings, update } = controller;
 
   return (
     <ScrollView
@@ -39,11 +39,7 @@ export function EuposSettings({
         description="Configure the NTRIP caster used to receive RTK corrections."
       />
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Account</Text>
-        <Text style={styles.cardCaption}>
-          Credentials issued for your ASG-EUPOS account
-        </Text>
+      <SettingsCard title="Account" caption="Credentials issued for your ASG-EUPOS account">
         <FormField
           icon="person-outline"
           label="Username"
@@ -52,21 +48,16 @@ export function EuposSettings({
           onChangeText={(value) => update("username", value)}
         />
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputShell}>
-            <MaterialIcons name="lock-outline" size={20} color="#64748B" />
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={(value) => update("password", value)}
-              placeholder="Enter password"
-              placeholderTextColor="#94A3B8"
-              secureTextEntry={!showPassword}
-              style={styles.input}
-              value={settings.password}
-            />
+        <FormField
+          icon="lock-outline"
+          label="Password"
+          placeholder="Enter password"
+          value={settings.password}
+          onChangeText={(value) => update("password", value)}
+          secureTextEntry={!showPassword}
+          trailing={
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel={showPassword ? "Hide password" : "Show password"}
               hitSlop={8}
               onPress={() => setShowPassword((current) => !current)}
@@ -77,15 +68,11 @@ export function EuposSettings({
                 color="#64748B"
               />
             </Pressable>
-          </View>
-        </View>
-      </View>
+          }
+        />
+      </SettingsCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>NTRIP server</Text>
-        <Text style={styles.cardCaption}>
-          Caster address and correction stream
-        </Text>
+      <SettingsCard title="NTRIP server" caption="Caster address and correction stream">
         <FormField
           icon="language"
           keyboardType="url"
@@ -135,9 +122,9 @@ export function EuposSettings({
             value={settings.useTls}
           />
         </View>
-      </View>
+      </SettingsCard>
 
-      {!!saveMessage && <InfoBanner positive message={saveMessage} />}
+      {saveFeedback && <InfoBanner variant={saveFeedback.status} message={saveFeedback.message} />}
       <PrimaryButton
         loading={isSaving}
         icon="save"
