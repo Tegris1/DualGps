@@ -1,55 +1,21 @@
-import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
 
-import type { EuposSettings } from "@/components/settings/types";
-
-import { validateNtripSettings } from "@/lib/gps/ntrip-protocol";
+import { DEFAULT_EUPOS_SETTINGS, parseStoredEuposSettings, toNtripSettings } from "@/lib/gps/eupos-settings";
+import type { EuposSettings } from "@/lib/gps/types";
+import { createSecureStorage } from "@/lib/secure-storage";
 
 const STORAGE_KEY = "dualgps.asg-eupos-settings";
-const INITIAL_SETTINGS: EuposSettings = {
-  username: "",
-  password: "",
-  host: "system.asgeupos.pl",
-  port: "2101",
-  mountpoint: "RTN_VRS_3_1",
-  useTls: false,
-};
-
-async function readSettings(): Promise<EuposSettings | null> {
-  const value =
-    Platform.OS === "web"
-      ? typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(STORAGE_KEY)
-      : await SecureStore.getItemAsync(STORAGE_KEY);
-
-  if (!value) return null;
-
-  try {
-    return { ...INITIAL_SETTINGS, ...JSON.parse(value) };
-  } catch {
-    return null;
-  }
-}
-
-async function writeSettings(settings: EuposSettings) {
-  const value = JSON.stringify(settings);
-
-  if (Platform.OS === "web") {
-    window.localStorage.setItem(STORAGE_KEY, value);
-  } else {
-    await SecureStore.setItemAsync(STORAGE_KEY, value);
-  }
-}
+const settingsStorage = createSecureStorage("local");
 
 export function useEuposSettings() {
-  const [settings, setSettings] = useState<EuposSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<EuposSettings>(DEFAULT_EUPOS_SETTINGS);
   const [saveMessage, setSaveMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    void readSettings().then((saved) => saved && setSettings(saved));
+    void settingsStorage.getItem(STORAGE_KEY)
+      .then((value) => { if (value) setSettings(parseStoredEuposSettings(value)); })
+      .catch((error) => console.error("Could not restore ASG-EUPOS settings:", error));
   }, []);
 
   function update<Key extends keyof EuposSettings>(
@@ -65,22 +31,9 @@ export function useEuposSettings() {
     setSaveMessage("");
 
     try {
-      const normalized = {
-        ...settings,
-        username: settings.username.trim(),
-        host: settings.host.trim(),
-        port: settings.port.trim(),
-        mountpoint: settings.mountpoint.trim(),
-      };
-      if (!normalized.password) {
-        throw new Error("Enter your ASG-EUPOS password");
-      }
-
-      validateNtripSettings({
-        ...normalized,
-        port: Number(normalized.port),
-      });
-      await writeSettings(normalized);
+      const connectionSettings = toNtripSettings(settings);
+      const normalized = { ...connectionSettings, port: String(connectionSettings.port) };
+      await settingsStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       setSettings(normalized);
       setSaveMessage("ASG-EUPOS settings saved.");
     } catch (error) {

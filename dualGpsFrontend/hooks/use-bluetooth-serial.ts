@@ -5,7 +5,8 @@ import BluetoothClassic, {
   type BluetoothEventSubscription,
 } from "react-native-bluetooth-classic";
 
-import type { ConsoleEntry, EuposSettings } from "@/components/settings/types";
+import { toNtripSettings } from "@/lib/gps/eupos-settings";
+import type { ConsoleEntry, EuposSettings } from "@/lib/gps/types";
 import { ensureBluetoothConnectPermission } from "@/utils/bluetoothPermisisons";
 
 import {
@@ -165,29 +166,11 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
   }
 
   function currentNtripSettings(): NtripSettings | null {
-    const settings = euposSettingsRef.current;
-    const port = Number(settings.port);
-
-    if (
-      !settings.host.trim() ||
-      !settings.mountpoint.trim() ||
-      !settings.username.trim() ||
-      !Number.isInteger(port) ||
-      !settings.password ||
-      port < 1 ||
-      port > 65535
-    ) {
+    try {
+      return toNtripSettings(euposSettingsRef.current);
+    } catch {
       return null;
     }
-
-    return {
-      host: settings.host,
-      mountpoint: settings.mountpoint,
-      password: settings.password,
-      port,
-      useTls: settings.useTls,
-      username: settings.username,
-    };
   }
 
   async function startNtrip(device: BluetoothDevice, gga: string) {

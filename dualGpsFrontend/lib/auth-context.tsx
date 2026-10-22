@@ -1,5 +1,5 @@
 import { authApi, AuthApiError } from "@/api/authApi";
-import * as SecureStore from "expo-secure-store";
+import { createSecureStorage } from "@/lib/secure-storage";
 import {
   createContext,
   type ReactNode,
@@ -7,9 +7,9 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Platform } from "react-native";
 
 const AUTH_SESSION_KEY = "dualgps.auth-session";
+const authSessionStorage = createSecureStorage("session");
 
 type AuthUser = {
   email: string;
@@ -34,34 +34,6 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-async function readStoredSession(): Promise<string | null> {
-  if (Platform.OS === "web") {
-    return typeof window === "undefined"
-      ? null
-      : window.sessionStorage.getItem(AUTH_SESSION_KEY);
-  }
-
-  return SecureStore.getItemAsync(AUTH_SESSION_KEY);
-}
-
-async function storeSession(value: string): Promise<void> {
-  if (Platform.OS === "web") {
-    window.sessionStorage.setItem(AUTH_SESSION_KEY, value);
-    return;
-  }
-
-  await SecureStore.setItemAsync(AUTH_SESSION_KEY, value);
-}
-
-async function removeStoredSession(): Promise<void> {
-  if (Platform.OS === "web") {
-    window.sessionStorage.removeItem(AUTH_SESSION_KEY);
-    return;
-  }
-
-  await SecureStore.deleteItemAsync(AUTH_SESSION_KEY);
-}
 
 function parseStoredSession(value: string | null): StoredSession | null {
   if (!value) {
@@ -97,14 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function restoreSession() {
       try {
-        const storedValue = await readStoredSession();
+        const storedValue = await authSessionStorage.getItem(AUTH_SESSION_KEY);
         const session = parseStoredSession(storedValue);
 
         if (session) {
           setToken(session.token);
           setUser({ email: session.email });
         } else if (storedValue) {
-          await removeStoredSession();
+          await authSessionStorage.removeItem(AUTH_SESSION_KEY);
         }
       } catch (error) {
         console.error("Could not restore the authentication session:", error);
@@ -129,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: normalizedEmail,
       };
 
-      await storeSession(JSON.stringify(session));
+      await authSessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
       setToken(session.token);
       setUser({ email: session.email });
       return null;
@@ -163,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
 
     try {
-      await removeStoredSession();
+      await authSessionStorage.removeItem(AUTH_SESSION_KEY);
     } catch (error) {
       console.error("Could not remove the authentication session:", error);
     }
