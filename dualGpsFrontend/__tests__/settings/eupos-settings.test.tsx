@@ -5,12 +5,14 @@ import { act } from "react";
 import { EuposSettings } from "../../components/settings/eupos-settings";
 import { InfoBanner } from "../../components/settings/settings-controls";
 import { useEuposSettings } from "../../hooks/use-eupos-settings";
+import { getEuposSaveFeedback } from "../../features/gps/presentation/eupos-feedback";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
 jest.mock("expo-secure-store", () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn() }));
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create>;
+let controller!: ReturnType<typeof useEuposSettings>;
 const readStorage = jest.mocked(SecureStore.getItemAsync);
 const writeStorage = jest.mocked(SecureStore.setItemAsync);
 const savedSettings = {
@@ -22,7 +24,8 @@ const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
 
 function Screen() {
-  return <EuposSettings controller={useEuposSettings()} />;
+  controller = useEuposSettings();
+  return <EuposSettings controller={controller} saveFeedback={getEuposSaveFeedback(controller.saveResult)} />;
 }
 
 beforeAll(() => {
@@ -80,6 +83,9 @@ it("shows validation failures as alerts, saves successfully after correction, an
   await render();
   await save();
   expect(writeStorage).not.toHaveBeenCalled();
+  expect(controller.saveResult).toMatchObject({
+    status: "error", failure: { kind: "validation", error: { code: "password-required" } },
+  });
   expect(banners()[0].props.variant).toBe("error");
   expect(banners()[0].props.message).toContain("Enter your ASG-EUPOS password");
   expect(root.root.findAll((node: any) => node.props.accessibilityRole === "alert").length).toBeGreaterThan(0);
@@ -99,11 +105,13 @@ it("shows validation failures as alerts, saves successfully after correction, an
 
 it("reports a storage failure as an error instead of successful feedback", async () => {
   readStorage.mockResolvedValue(JSON.stringify(savedSettings));
-  writeStorage.mockRejectedValueOnce(new Error("Storage unavailable"));
+  const cause = new Error("Native storage diagnostics");
+  writeStorage.mockRejectedValueOnce(cause);
   await render();
   await save();
   expect(banners()[0].props.variant).toBe("error");
-  expect(banners()[0].props.message).toContain("Storage unavailable");
+  expect(controller.saveResult).toEqual({ status: "error", failure: { kind: "persistence", cause } });
+  expect(banners()[0].props.message).toBe("Could not save settings. Please try again.");
   expect(root.root.findAll((node: any) => node.props.accessibilityRole === "alert").length).toBeGreaterThan(0);
   expect(saveButton().props.loading).toBe(false);
 });

@@ -5,22 +5,24 @@ type AuthFormInput = {
   password: string;
 };
 
+export type AuthValidationIssue = "username-required" | "credentials-required" | "password-too-short";
+
 export function validateAuthForm({
   isSignUp,
   username,
   email,
   password,
-}: AuthFormInput): string | null {
+}: AuthFormInput): AuthValidationIssue | null {
   if (isSignUp && !username.trim()) {
-    return "Please enter a username.";
+    return "username-required";
   }
 
   if (!email || !password) {
-    return "Please fill in both email and password fields.";
+    return "credentials-required";
   }
 
   if (password.length < 6) {
-    return "Password must be at least 6 characters long.";
+    return "password-too-short";
   }
 
   return null;

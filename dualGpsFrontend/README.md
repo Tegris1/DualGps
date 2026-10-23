@@ -66,9 +66,11 @@ The debug console retains the latest 200 entries. Disconnecting Bluetooth also s
 
 ```text
 app/                 Expo Router screens, layouts, and route guards
-api/                 Authentication HTTP client and error handling
+api/                 Authentication HTTP client and typed transport errors
 components/settings/ Bluetooth, caster settings, and diagnostics UI
 hooks/               Connection orchestration and persisted settings
+features/auth/       Online form validation, error messages, and offline session
+features/gps/        Settings feedback presentation
 lib/auth-context.tsx Shared authentication state
 lib/gps-context.tsx  Shared receiver and correction state
 lib/gps/             NMEA, NTRIP, RTCM, and receiver configuration logic
@@ -78,6 +80,8 @@ utils/               Android permission helper
 The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-serial.ts). The protocol modules under [lib/gps](lib/gps) keep parsing and stream handling separate from the screens. [ntrip-connection.ts](lib/gps/ntrip-connection.ts) manages the socket, GGA updates, correction forwarding, and diagnostics.
 
 The online authentication route [app/auth.tsx](app/auth.tsx) connects [useAuthForm](features/auth/hooks/use-auth-form.ts) to the prop-driven [AuthForm](features/auth/components/auth-form.tsx). Validation lives in [features/auth/validation.ts](features/auth/validation.ts); the hook owns form state, submission, and errors. API calls and session storage stay in the authentication provider, and the root layout's route guard handles successful sign-in redirects.
+
+Authentication operations return `AuthFailure | null`, preserving API error kind, HTTP status/body details, and persistence causes. [Authentication message mapping](features/auth/error-messages.ts) translates those failures and form-validation issues into display text. The EUPOS hook exposes a typed `saveResult`; the settings route maps it through [EUPOS feedback](features/gps/presentation/eupos-feedback.ts) before passing messages and severity to the view. Validation uses typed NTRIP setting errors, while raw storage and unexpected-error diagnostics stay separate from user-facing feedback.
 
 ## Terrain rendering preview
 

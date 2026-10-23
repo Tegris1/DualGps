@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
 
 import { useAuth } from "@/lib/auth-context";
+import { toAuthFailure } from "@/lib/auth-errors";
 
+import { getAuthErrorMessage, type AuthFormFailure } from "../error-messages";
 import { validateAuthForm } from "../validation";
 
 export function useAuthForm() {
@@ -10,7 +12,7 @@ export function useAuthForm() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<AuthFormFailure | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
@@ -19,21 +21,21 @@ export function useAuthForm() {
 
     const validationError = validateAuthForm({ isSignUp, username, email, password });
     if (validationError) {
-      setError(validationError);
+      setFailure({ kind: "validation", issue: validationError });
       return;
     }
 
     submittingRef.current = true;
     setIsSubmitting(true);
-    setError(null);
+    setFailure(null);
 
     try {
       const authError = isSignUp
         ? await signUp(username, email, password)
         : await signIn(email, password);
-      setError(authError);
-    } catch {
-      setError("An unexpected authentication error occurred.");
+      setFailure(authError);
+    } catch (error) {
+      setFailure(toAuthFailure(error));
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
@@ -44,7 +46,7 @@ export function useAuthForm() {
     if (submittingRef.current) return;
 
     setIsSignUp((current) => !current);
-    setError(null);
+    setFailure(null);
   }
 
   return {
@@ -52,7 +54,7 @@ export function useAuthForm() {
     username,
     email,
     password,
-    error,
+    error: getAuthErrorMessage(failure),
     isSubmitting,
     onUsernameChange: setUsername,
     onEmailChange: setEmail,

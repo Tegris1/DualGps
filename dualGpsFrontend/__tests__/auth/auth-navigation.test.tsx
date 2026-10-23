@@ -7,7 +7,6 @@ import { authApi } from "../../api/authApi";
 
 jest.mock("../../api/authApi", () => ({
   authApi: { login: jest.fn(), register: jest.fn() },
-  AuthApiError: class extends Error {},
 }));
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),

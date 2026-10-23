@@ -1,5 +1,16 @@
 import { validateNtripSettings, type NtripSettings } from "./ntrip-protocol";
+import { NtripSettingsError } from "./settings-errors";
 import type { EuposSettings } from "./types";
+
+export type EuposSaveResult =
+  | { status: "success" }
+  | {
+    status: "error";
+    failure:
+      | { kind: "validation"; error: NtripSettingsError }
+      | { kind: "persistence"; cause: unknown }
+      | { kind: "unexpected"; cause: unknown };
+  };
 
 export const DEFAULT_EUPOS_SETTINGS: EuposSettings = {
   username: "",
@@ -11,7 +22,7 @@ export const DEFAULT_EUPOS_SETTINGS: EuposSettings = {
 };
 
 export function toNtripSettings(settings: EuposSettings): NtripSettings {
-  if (!settings.password) throw new Error("Enter your ASG-EUPOS password");
+  if (!settings.password) throw new NtripSettingsError("password-required");
   return validateNtripSettings({ ...settings, port: Number(settings.port) });
 }
 

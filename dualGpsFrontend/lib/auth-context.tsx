@@ -1,4 +1,5 @@
-import { authApi, AuthApiError } from "@/api/authApi";
+import { authApi } from "@/api/authApi";
+import { toAuthFailure, type AuthFailure } from "@/lib/auth-errors";
 import { createSecureStorage } from "@/lib/secure-storage";
 import {
   createContext,
@@ -28,8 +29,8 @@ type AuthContextType = {
     username: string,
     email: string,
     password: string,
-  ) => Promise<string | null>;
-  signIn: (email: string, password: string) => Promise<string | null>;
+  ) => Promise<AuthFailure | null>;
+  signIn: (email: string, password: string) => Promise<AuthFailure | null>;
   signOut: () => Promise<void>;
 };
 
@@ -51,14 +52,6 @@ function parseStoredSession(value: string | null): StoredSession | null {
   }
 
   return null;
-}
-
-function getAuthErrorMessage(error: unknown): string {
-  if (error instanceof AuthApiError) {
-    return error.message;
-  }
-
-  return "An unexpected authentication error occurred.";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -88,33 +81,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void restoreSession();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<AuthFailure | null> => {
     const normalizedEmail = email.trim().toLowerCase();
+    let session: StoredSession;
 
     try {
       const response = await authApi.login({
         email: normalizedEmail,
         password,
       });
-      const session: StoredSession = {
+      session = {
         token: response.token,
         email: normalizedEmail,
       };
-
-      await authSessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-      setToken(session.token);
-      setUser({ email: session.email });
-      return null;
     } catch (error) {
-      return getAuthErrorMessage(error);
+      return toAuthFailure(error);
     }
+
+    try {
+      await authSessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+    } catch (cause) {
+      return { kind: "persistence", cause };
+    }
+
+    setToken(session.token);
+    setUser({ email: session.email });
+    return null;
   };
 
   const signUp = async (
     username: string,
     email: string,
     password: string,
-  ) => {
+  ): Promise<AuthFailure | null> => {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
@@ -124,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
     } catch (error) {
-      return getAuthErrorMessage(error);
+      return toAuthFailure(error);
     }
 
     return signIn(normalizedEmail, password);

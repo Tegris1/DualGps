@@ -1,6 +1,10 @@
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 
+import { AuthApiError } from "./auth-errors";
+
+export { AuthApiError } from "./auth-errors";
+
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export type LoginRequest = {
@@ -38,18 +42,6 @@ export type RegisteredUser = {
   role: "USER" | "EMPLOYEE" | "SECRETARY" | "ADMIN";
 };
 
-export class AuthApiError extends Error {
-  readonly status: number | null;
-  readonly details: unknown;
-
-  constructor(message: string, status: number | null, details?: unknown) {
-    super(message);
-    this.name = "AuthApiError";
-    this.status = status;
-    this.details = details;
-  }
-}
-
 function getApiBaseUrl(): string {
   const isAndroidEmulator = Platform.OS === "android" && !Device.isDevice;
   const apiUrl = (
@@ -59,38 +51,10 @@ function getApiBaseUrl(): string {
   )?.trim();
 
   if (!apiUrl) {
-    throw new AuthApiError("API URL is not configured in .env.", null);
+    throw new AuthApiError("configuration");
   }
 
   return apiUrl.replace(/\/+$/, "");
-}
-
-function getErrorMessage(body: unknown, status: number): string {
-  if (typeof body === "string" && body.trim()) {
-    return body;
-  }
-
-  if (body && typeof body === "object") {
-    const errorBody = body as Record<string, unknown>;
-
-    if (typeof errorBody.message === "string") {
-      return errorBody.message;
-    }
-
-    if (typeof errorBody.error === "string") {
-      return errorBody.error;
-    }
-
-    const validationMessages = Object.values(errorBody).filter(
-      (value): value is string => typeof value === "string",
-    );
-
-    if (validationMessages.length > 0) {
-      return validationMessages.join("\n");
-    }
-  }
-
-  return `Authentication request failed (${status}).`;
 }
 
 async function parseResponse(response: Response): Promise<unknown> {
@@ -107,7 +71,7 @@ async function parseResponse(response: Response): Promise<unknown> {
   }
 }
 
-async function request<T>(path: string, body: unknown): Promise<T> {
+async function request(path: string, body: unknown): Promise<{ body: unknown; status: number }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -124,42 +88,41 @@ async function request<T>(path: string, body: unknown): Promise<T> {
     const responseBody = await parseResponse(response);
 
     if (!response.ok) {
-      throw new AuthApiError(
-        getErrorMessage(responseBody, response.status),
-        response.status,
-        responseBody,
-      );
+      throw new AuthApiError("http", response.status, responseBody);
     }
 
-    return responseBody as T;
+    return { body: responseBody, status: response.status };
   } catch (error) {
     if (error instanceof AuthApiError) {
       throw error;
     }
 
     if (error instanceof Error && error.name === "AbortError") {
-      throw new AuthApiError("The authentication request timed out.", null);
+      throw new AuthApiError("timeout", null, error);
     }
 
-    throw new AuthApiError(
-      "Could not connect to the authentication server.",
-      null,
-      error,
-    );
+    throw new AuthApiError("network", null, error);
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-export function login(credentials: LoginRequest): Promise<AuthTokenResponse> {
-  return request<AuthTokenResponse>("/api/auth/login", credentials);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export async function login(credentials: LoginRequest): Promise<AuthTokenResponse> {
+  const { body, status } = await request("/api/auth/login", credentials);
+  if (!isRecord(body) || typeof body.token !== "string" || !body.token.trim()) {
+    throw new AuthApiError("invalid-response", status, body);
+  }
+  return { token: body.token };
 }
 
 export async function register(user: RegisterRequest): Promise<RegisteredUser> {
-  const registeredUser = await request<RegisteredUser & { password?: string }>(
-    "/api/auth/register",
-    user,
-  );
+  const { body, status } = await request("/api/auth/register", user);
+  if (!isRecord(body)) throw new AuthApiError("invalid-response", status, body);
+  const registeredUser = { ...body } as RegisteredUser & { password?: unknown };
 
   delete registeredUser.password;
   return registeredUser;

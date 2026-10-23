@@ -3,6 +3,8 @@ import { act } from "react";
 import { Button, Text, TextInput } from "react-native-paper";
 
 import AuthScreen from "../../app/auth";
+import { AuthApiError } from "../../api/auth-errors";
+import type { AuthFailure } from "../../lib/auth-errors";
 import { useAuth } from "../../lib/auth-context";
 
 jest.mock("../../lib/auth-context", () => ({ useAuth: jest.fn() }));
@@ -13,8 +15,8 @@ jest.mock("react-native-paper", () => ({
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create>;
-const signIn = jest.fn<(email: string, password: string) => Promise<string | null>>();
-const signUp = jest.fn<(username: string, email: string, password: string) => Promise<string | null>>();
+const signIn = jest.fn<(email: string, password: string) => Promise<AuthFailure | null>>();
+const signUp = jest.fn<(username: string, email: string, password: string) => Promise<AuthFailure | null>>();
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
@@ -105,7 +107,7 @@ it("switches modes, clears old errors, retains fields, and submits sign-up throu
 
 it.each([false, true])("shows session errors and allows a successful retry (sign-up: %s)", async (isSignUp) => {
   const action = isSignUp ? signUp : signIn;
-  action.mockResolvedValueOnce("Authentication was rejected.");
+  action.mockResolvedValueOnce({ kind: "api", error: new AuthApiError("http", 401, "Authentication was rejected.") });
   await render();
   await enterCredentials();
   if (isSignUp) {
@@ -122,7 +124,7 @@ it.each([false, true])("shows session errors and allows a successful retry (sign
 });
 
 it("blocks duplicate submissions and mode changes while a request is pending", async () => {
-  let finishSignIn!: (error: string | null) => void;
+  let finishSignIn!: (error: AuthFailure | null) => void;
   signIn.mockImplementationOnce(() => new Promise((resolve) => { finishSignIn = resolve; }));
   await render();
   await enterCredentials();

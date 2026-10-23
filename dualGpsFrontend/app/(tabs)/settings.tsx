@@ -12,6 +12,7 @@ import {
   type SettingsSection,
 } from "@/components/settings";
 import { useGps } from "@/lib/gps-context";
+import { getEuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback";
 
 export default function SettingsScreen() {
   const [activeSection, setActiveSection] =
@@ -36,7 +37,9 @@ export default function SettingsScreen() {
             onOpenDebug={() => setActiveSection("debug")}
           />
         )}
-        {activeSection === "eupos" && <EuposSettings controller={eupos} />}
+        {activeSection === "eupos" && (
+          <EuposSettings controller={eupos} saveFeedback={getEuposSaveFeedback(eupos.saveResult)} />
+        )}
         {activeSection === "debug" && (
           <DebugConsole
             bluetooth={bluetooth}

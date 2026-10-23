@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import type { EuposSettingsController } from "@/hooks/use-eupos-settings";
+import type { EuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback";
 
 import {
   FormField,
@@ -21,11 +22,13 @@ import { SettingsCard } from "./settings-card";
 
 export function EuposSettings({
   controller,
+  saveFeedback,
 }: {
   controller: EuposSettingsController;
+  saveFeedback: EuposSaveFeedback | null;
 }) {
   const [showPassword, setShowPassword] = useState(false);
-  const { isSaving, save, saveFeedback, settings, update } = controller;
+  const { isSaving, save, settings, update } = controller;
 
   return (
     <ScrollView

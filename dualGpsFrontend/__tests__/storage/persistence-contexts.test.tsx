@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@j
 import { act } from "react";
 
 import { authApi } from "../../api/authApi";
+import { AuthApiError } from "../../api/auth-errors";
 import { useEuposSettings } from "../../hooks/use-eupos-settings";
 import { AuthProvider, useAuth } from "../../lib/auth-context";
 import { DEFAULT_EUPOS_SETTINGS, toNtripSettings } from "../../lib/gps/eupos-settings";
@@ -10,7 +11,6 @@ jest.mock("react-native", () => ({ Platform: { OS: "web" } }));
 jest.mock("expo-secure-store", () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 jest.mock("../../api/authApi", () => ({
   authApi: { login: jest.fn(), register: jest.fn() },
-  AuthApiError: class extends Error {},
 }));
 
 const { create } = require("react-test-renderer");
@@ -126,4 +126,49 @@ it("keeps settings usable after a storage read fails", async () => {
   expect(settings.settings).toEqual(DEFAULT_EUPOS_SETTINGS);
   await act(() => settings.update("host", "caster.example.com"));
   expect(settings.settings.host).toBe("caster.example.com");
+});
+
+it("preserves API failure details without changing the session or writing storage", async () => {
+  const failure = new AuthApiError("http", 401, { message: "Invalid credentials" });
+  jest.mocked(authApi.login).mockRejectedValueOnce(failure);
+  await render();
+  await act(async () => {
+    expect(await auth.signIn("operator@example.com", "password")).toEqual({ kind: "api", error: failure });
+  });
+  expect(auth.user).toBeNull();
+  expect(sessionStorage.setItem).not.toHaveBeenCalled();
+});
+
+it("distinguishes session persistence failures from authentication failures and allows retry", async () => {
+  const cause = new Error("Storage blocked");
+  await render();
+  sessionStorage.setItem.mockImplementationOnce(() => { throw cause; });
+  await act(async () => {
+    expect(await auth.signIn("operator@example.com", "password")).toEqual({ kind: "persistence", cause });
+  });
+  expect(auth.user).toBeNull();
+  expect(auth.token).toBeNull();
+  await act(async () => { expect(await auth.signIn("operator@example.com", "password")).toBeNull(); });
+  expect(auth.user?.email).toBe("operator@example.com");
+});
+
+it("preserves registration rejection and does not attempt sign-in", async () => {
+  const failure = new AuthApiError("http", 409, { error: "Email already registered" });
+  jest.mocked(authApi.register).mockRejectedValueOnce(failure);
+  await render();
+  await act(async () => {
+    expect(await auth.signUp("operator", "operator@example.com", "password")).toEqual({ kind: "api", error: failure });
+  });
+  expect(authApi.login).not.toHaveBeenCalled();
+  expect(sessionStorage.setItem).not.toHaveBeenCalled();
+});
+
+it("retains unexpected service failures as diagnostics", async () => {
+  const cause = new Error("Unexpected service failure");
+  jest.mocked(authApi.login).mockRejectedValueOnce(cause);
+  await render();
+  await act(async () => {
+    expect(await auth.signIn("operator@example.com", "password")).toEqual({ kind: "unexpected", cause });
+  });
+  expect(auth.user).toBeNull();
 });
