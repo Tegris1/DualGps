@@ -23,11 +23,14 @@ const delay = (milliseconds: number) =>
 export async function configureTopcon(
   device: BluetoothDevice,
   model: ReceiverModel,
+  isActive: () => boolean = () => true,
 ): Promise<void> {
   if (model !== "topcon") return;
 
   for (const command of TOPCON_SETUP_COMMANDS) {
+    if (!isActive()) return;
     const written = await device.write(`${command}\r\n`, "ascii");
+    if (!isActive()) return;
 
     if (!written) {
       throw new Error(`Receiver rejected configuration command: ${command}`);
