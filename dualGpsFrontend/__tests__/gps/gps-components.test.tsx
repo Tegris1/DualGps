@@ -1,23 +1,31 @@
 import { afterAll, afterEach, beforeAll, expect, it, jest } from "@jest/globals";
 import { act, type ReactElement } from "react";
-import { Text } from "react-native";
+import { Button, Text } from "react-native";
 import type { BluetoothDevice } from "react-native-bluetooth-classic";
 
 import ConnectionSetup from "../../app/(tabs)/connection_setup";
+import SettingsScreen from "../../app/(tabs)/settings";
 import { GnssSolutionDetails } from "../../components/gps/gnss-solution-details";
 import { ReceiverDeviceList } from "../../components/gps/receiver-device-list";
 import { ReceiverProfileSelector } from "../../components/gps/receiver-profile-selector";
-import { BluetoothSettings } from "../../components/settings/bluetooth-settings";
-import { DebugConsole } from "../../components/settings/debug-console";
+import { SettingsTabs } from "../../components/settings/settings-tabs";
+import { InfoBanner } from "../../components/settings/settings-controls";
 import type { BluetoothSerialController } from "../../hooks/use-bluetooth-serial";
+import type { EuposSettingsController } from "../../hooks/use-eupos-settings";
+import { DEFAULT_EUPOS_SETTINGS } from "../../lib/gps/eupos-settings";
 import type { GgaFix } from "../../lib/gps/nmea";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
-jest.mock("../../lib/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth }) }));
+jest.mock("../../lib/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth, eupos: mockEupos }) }));
+jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create>;
 let mockBluetooth: BluetoothSerialController;
+const mockEupos: EuposSettingsController = {
+  settings: DEFAULT_EUPOS_SETTINGS, isSaving: false, saveResult: null,
+  update: jest.fn(), save: jest.fn(async () => {}),
+};
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
@@ -55,6 +63,16 @@ function action(label: string) {
   return root.root.find((node: any) =>
     node.props.accessibilityLabel === label && typeof node.props.onPress === "function",
   );
+}
+
+async function openDebug() {
+  await act(() => root.root.findByType(SettingsTabs).props.onChange("debug"));
+}
+
+function connectAction(screen: "setup" | "settings" | "debug") {
+  if (screen === "setup") return root.root.findByType(ReceiverDeviceList);
+  if (screen === "debug") return action(mockBluetooth.isConnecting ? "Connecting…" : "Connect");
+  return root.root.find((node: any) => node.props.icon === "bluetooth-connected" && typeof node.props.onPress === "function");
 }
 
 function fix(overrides: Partial<GgaFix> = {}): GgaFix {
@@ -143,7 +161,7 @@ it("shows empty receivers, unnamed devices, selection, connection badges, and de
 
 it.each(["setup", "settings"] as const)("preserves the %s screen's device action", async (screen) => {
   mockBluetooth = controller();
-  await render(screen === "setup" ? <ConnectionSetup /> : <BluetoothSettings bluetooth={mockBluetooth} onOpenDebug={() => {}} />);
+  await render(screen === "setup" ? <ConnectionSetup /> : <SettingsScreen />);
   await act(() => action("Test receiver, AA").props.onPress());
   expect(mockBluetooth.selectDevice).toHaveBeenCalledWith("AA");
   if (screen === "setup") {
@@ -163,7 +181,8 @@ it("requires a profile before setup connects and disables profile changes on a c
   await act(() => action("Topcon").props.onPress());
   expect(mockBluetooth.selectReceiverModel).toHaveBeenCalledWith("topcon");
   const device = mockBluetooth.devices[0];
-  await act(() => root.update(<BluetoothSettings bluetooth={controller({ connectedDevice: device })} onOpenDebug={() => {}} />));
+  mockBluetooth = controller({ connectedDevice: device });
+  await act(() => root.update(<SettingsScreen />));
   expect(action("Topcon").props.disabled).toBe(true);
   expect(action("Kolida").props.disabled).toBe(true);
 });
@@ -172,7 +191,105 @@ it("uses the same fallback readings in setup and the debug console, with UTC ava
   mockBluetooth = controller({ latestFix: fix({ utcTime: "123456" }), gsaDop: { receivedAt: 0, hdop: 1.25 } });
   await render(<ConnectionSetup />);
   expect(readings()).toEqual(expect.arrayContaining(["HDOP: 1.25", "UTC: 123456"]));
-  await act(() => root.update(<DebugConsole bluetooth={mockBluetooth} onSelectDevice={() => {}} />));
+  await act(() => root.update(<SettingsScreen />));
+  await openDebug();
   expect(readings()).toContain("HDOP: 1.25");
   expect(readings()).not.toContain("UTC: 123456");
+});
+
+it.each(["setup", "settings", "debug"] as const)("blocks %s connections without a profile, including direct callback invocation", async (screen) => {
+  mockBluetooth = controller({ receiverModel: null });
+  await render(screen === "setup" ? <ConnectionSetup /> : <SettingsScreen />);
+  if (screen === "debug") await openDebug();
+  const control = connectAction(screen);
+  expect(control.props.disabled).toBe(true);
+  await act(async () => {
+    if (screen === "setup") await control.props.onSelect("AA");
+    else await control.props.onPress();
+  });
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  expect(mockBluetooth.selectDevice).not.toHaveBeenCalled();
+});
+
+it.each(["setup", "settings", "debug"] as const)("blocks %s connections while another attempt is pending", async (screen) => {
+  mockBluetooth = controller({ isConnecting: true });
+  await render(screen === "setup" ? <ConnectionSetup /> : <SettingsScreen />);
+  if (screen === "debug") await openDebug();
+  const control = connectAction(screen);
+  expect(control.props.disabled).toBe(true);
+  await act(async () => {
+    if (screen === "setup") await control.props.onSelect("AA");
+    else await control.props.onPress();
+  });
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+});
+
+it("locks profile and device selection during connection setup", async () => {
+  mockBluetooth = controller({ isConnecting: true });
+  await render(<SettingsScreen />);
+  expect(action("Kolida").props.disabled).toBe(true);
+  expect(action("Test receiver, AA").props.disabled).toBe(true);
+  await act(() => {
+    action("Kolida").props.onPress();
+    action("Test receiver, AA").props.onPress();
+  });
+  expect(mockBluetooth.selectReceiverModel).not.toHaveBeenCalled();
+  expect(mockBluetooth.selectDevice).not.toHaveBeenCalled();
+});
+
+it("keeps setup Disconnect available to cancel a pending connection", async () => {
+  mockBluetooth = controller({ isConnecting: true });
+  await render(<ConnectionSetup />);
+  const disconnect = root.root.findAllByType(Button).find((node: any) => node.props.title === "Disconnect");
+  expect(disconnect.props.disabled).toBe(false);
+  await act(async () => { await disconnect.props.onPress(); });
+  expect(mockBluetooth.disconnect).toHaveBeenCalledTimes(1);
+});
+
+it("connects from debug when eligible, switches to disconnect when online, and clears the console", async () => {
+  mockBluetooth = controller();
+  await render(<SettingsScreen />);
+  await openDebug();
+  expect(action("Connect").props.disabled).toBe(false);
+  await act(async () => { await action("Connect").props.onPress(); });
+  expect(mockBluetooth.connectSelected).toHaveBeenCalledTimes(1);
+
+  const device = mockBluetooth.devices[0];
+  mockBluetooth = controller({ connectedDevice: device, consoleEntries: [{ id: 1, message: "$GPGGA", time: "12:00" }] });
+  await act(() => root.update(<SettingsScreen />));
+  expect(action("Disconnect").props.disabled).toBe(false);
+  await act(async () => { await action("Disconnect").props.onPress(); });
+  expect(mockBluetooth.disconnect).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  const clear = root.root.find((node: any) => node.props.onPress === mockBluetooth.clearConsole);
+  await act(() => clear.props.onPress());
+  expect(mockBluetooth.clearConsole).toHaveBeenCalledTimes(1);
+});
+
+it("uses the same NTRIP summary in setup, settings banners, and debug diagnostics", async () => {
+  const device = controller().devices[0];
+  mockBluetooth = controller({ connectedDevice: device, ntripStatus: {
+    state: "streaming", message: "Corrections active.", bytesReceived: 1024, bytesSentToReceiver: 512,
+    rtcm: { validFrames: 3, invalidFrames: 0 },
+  } });
+  const summary = "Corrections active. 3 valid RTCM frames, 512 bytes forwarded.";
+  await render(<ConnectionSetup />);
+  expect(readings()).toContain(`NTRIP: ${summary}`);
+  await act(() => root.update(<SettingsScreen />));
+  expect(root.root.findAllByType(InfoBanner).some((node: any) => node.props.message === summary && node.props.variant === "success")).toBe(true);
+  await openDebug();
+  expect(readings()).toContain(`Message: ${summary}`);
+});
+
+it("renders NTRIP failures as error banners and hides correction banners when Bluetooth is offline", async () => {
+  const device = controller().devices[0];
+  mockBluetooth = controller({ connectedDevice: device, ntripStatus: {
+    state: "error", message: "Caster rejected the credentials.", bytesReceived: 0, bytesSentToReceiver: 0,
+    rtcm: { validFrames: 0, invalidFrames: 0 },
+  } });
+  await render(<SettingsScreen />);
+  expect(root.root.findAllByType(InfoBanner).some((node: any) => node.props.variant === "error" && node.props.message === "Caster rejected the credentials.")).toBe(true);
+  mockBluetooth = controller();
+  await act(() => root.update(<SettingsScreen />));
+  expect(root.root.findAllByType(InfoBanner)).toHaveLength(1);
 });

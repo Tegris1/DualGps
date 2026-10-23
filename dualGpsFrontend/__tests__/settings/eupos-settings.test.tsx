@@ -25,7 +25,8 @@ let errorSpy: ReturnType<typeof jest.spyOn>;
 
 function Screen() {
   controller = useEuposSettings();
-  return <EuposSettings controller={controller} saveFeedback={getEuposSaveFeedback(controller.saveResult)} />;
+  return <EuposSettings settings={controller.settings} isSaving={controller.isSaving}
+    saveFeedback={getEuposSaveFeedback(controller.saveResult)} onChange={controller.update} onSave={controller.save} />;
 }
 
 beforeAll(() => {
@@ -144,4 +145,20 @@ it("clears old feedback during a new save and shows success only after storage f
   await act(async () => { finishSave(); });
   expect(saveButton().props.loading).toBe(false);
   expect(banners()[0].props.variant).toBe("success");
+});
+
+it("normalizes port edits in the hook while preserving passwords and TLS values", async () => {
+  await render();
+  await act(() => input("Port").props.onChangeText("2x10-1"));
+  expect(controller.settings.port).toBe("2101");
+  expect(input("Port").props.value).toBe("2101");
+  await act(() => {
+    controller.update("port", "8a080");
+    controller.update("password", " secret with spaces ");
+    controller.update("useTls", true);
+  });
+  expect(controller.settings.port).toBe("8080");
+  expect(controller.settings.password).toBe(" secret with spaces ");
+  expect(controller.settings.useTls).toBe(true);
+  expect(writeStorage).not.toHaveBeenCalled();
 });

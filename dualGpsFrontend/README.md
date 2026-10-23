@@ -70,7 +70,7 @@ api/                 Authentication HTTP client and typed transport errors
 components/settings/ Bluetooth, caster settings, and diagnostics UI
 hooks/               Connection orchestration and persisted settings
 features/auth/       Online form validation, error messages, and offline session
-features/gps/        Settings feedback presentation
+features/gps/        Receiver actions, setup view, and status/feedback presentation
 lib/auth-context.tsx Shared authentication state
 lib/gps-context.tsx  Shared receiver and correction state
 lib/gps/             NMEA, NTRIP, RTCM, and receiver configuration logic
@@ -82,6 +82,8 @@ The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-seri
 The online authentication route [app/auth.tsx](app/auth.tsx) connects [useAuthForm](features/auth/hooks/use-auth-form.ts) to the prop-driven [AuthForm](features/auth/components/auth-form.tsx). Validation lives in [features/auth/validation.ts](features/auth/validation.ts); the hook owns form state, submission, and errors. API calls and session storage stay in the authentication provider, and the root layout's route guard handles successful sign-in redirects.
 
 Authentication operations return `AuthFailure | null`, preserving API error kind, HTTP status/body details, and persistence causes. [Authentication message mapping](features/auth/error-messages.ts) translates those failures and form-validation issues into display text. The EUPOS hook exposes a typed `saveResult`; the settings route maps it through [EUPOS feedback](features/gps/presentation/eupos-feedback.ts) before passing messages and severity to the view. Validation uses typed NTRIP setting errors, while raw storage and unexpected-error diagnostics stay separate from user-facing feedback.
+
+Settings views receive explicit values and callbacks. [useReceiverControls](features/gps/hooks/use-receiver-controls.ts) connects the provider to the routes and coordinates selection, connection, and disconnection actions. [Receiver presentation](features/gps/presentation/receiver-state.ts) supplies shared eligibility rules, while [NTRIP presentation](features/gps/presentation/ntrip-status.ts) supplies consistent summaries, severity, and diagnostics for setup, Bluetooth settings, and debug. Connecting requires a profile and selected device; profile/device selection is locked during a pending connection. Setup retains its select-and-connect behavior, and settings retains separate selection and Connect actions. The EUPOS hook sanitizes port edits; password visibility and console scrolling remain local UI state.
 
 ## Terrain rendering preview
 

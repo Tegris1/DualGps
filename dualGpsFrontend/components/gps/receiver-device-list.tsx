@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-type ReceiverDevice = { address: string; name?: string | null };
+import type { ReceiverDevice } from "@/features/gps/presentation/types";
 
 type ReceiverDeviceListProps = {
   devices: readonly ReceiverDevice[];

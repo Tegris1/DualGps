@@ -8,8 +8,8 @@ import {
   View,
 } from "react-native";
 
-import type { EuposSettingsController } from "@/hooks/use-eupos-settings";
 import type { EuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback";
+import type { EuposSettings as EuposSettingsValues } from "@/lib/gps/types";
 
 import {
   FormField,
@@ -20,15 +20,16 @@ import {
 import { styles } from "./styles";
 import { SettingsCard } from "./settings-card";
 
-export function EuposSettings({
-  controller,
-  saveFeedback,
-}: {
-  controller: EuposSettingsController;
+type EuposSettingsProps = {
+  settings: EuposSettingsValues;
+  isSaving: boolean;
   saveFeedback: EuposSaveFeedback | null;
-}) {
+  onChange: <Key extends keyof EuposSettingsValues>(key: Key, value: EuposSettingsValues[Key]) => void;
+  onSave: () => void;
+};
+
+export function EuposSettings({ settings, isSaving, saveFeedback, onChange, onSave }: EuposSettingsProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const { isSaving, save, settings, update } = controller;
 
   return (
     <ScrollView
@@ -48,7 +49,7 @@ export function EuposSettings({
           label="Username"
           placeholder="Enter username"
           value={settings.username}
-          onChangeText={(value) => update("username", value)}
+          onChangeText={(value) => onChange("username", value)}
         />
 
         <FormField
@@ -56,7 +57,7 @@ export function EuposSettings({
           label="Password"
           placeholder="Enter password"
           value={settings.password}
-          onChangeText={(value) => update("password", value)}
+          onChangeText={(value) => onChange("password", value)}
           secureTextEntry={!showPassword}
           trailing={
             <Pressable
@@ -82,7 +83,7 @@ export function EuposSettings({
           label="IP address or hostname"
           placeholder="e.g. caster.example.com"
           value={settings.host}
-          onChangeText={(value) => update("host", value)}
+          onChangeText={(value) => onChange("host", value)}
         />
 
         <View style={styles.formRow}>
@@ -94,9 +95,7 @@ export function EuposSettings({
               maxLength={5}
               placeholder="2101"
               value={settings.port}
-              onChangeText={(value) =>
-                update("port", value.replace(/\D/g, ""))
-              }
+              onChangeText={(value) => onChange("port", value)}
             />
           </View>
           <View style={styles.formRowMountpoint}>
@@ -106,7 +105,7 @@ export function EuposSettings({
               label="Mountpoint"
               placeholder="Stream name"
               value={settings.mountpoint}
-              onChangeText={(value) => update("mountpoint", value)}
+              onChangeText={(value) => onChange("mountpoint", value)}
             />
           </View>
         </View>
@@ -119,7 +118,7 @@ export function EuposSettings({
             </Text>
           </View>
           <Switch
-            onValueChange={(value) => update("useTls", value)}
+            onValueChange={(value) => onChange("useTls", value)}
             thumbColor="#FFFFFF"
             trackColor={{ false: "#CBD5E1", true: "#0EA5E9" }}
             value={settings.useTls}
@@ -132,7 +131,7 @@ export function EuposSettings({
         loading={isSaving}
         icon="save"
         label={isSaving ? "Saving…" : "Save ASG-EUPOS settings"}
-        onPress={() => void save()}
+        onPress={onSave}
       />
     </ScrollView>
   );

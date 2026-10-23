@@ -29,7 +29,9 @@ export function useEuposSettings() {
     value: EuposSettings[Key],
   ) {
     setSaveResult(null);
-    setSettings((current) => ({ ...current, [key]: value }));
+    const normalizedValue = key === "port" && typeof value === "string"
+      ? value.replace(/\D/g, "") : value;
+    setSettings((current) => ({ ...current, [key]: normalizedValue }));
   }
 
   async function save() {

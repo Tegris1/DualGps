@@ -9,7 +9,8 @@ import {
 
 import { ReceiverDeviceList } from "@/components/gps/receiver-device-list";
 import { ReceiverProfileSelector } from "@/components/gps/receiver-profile-selector";
-import type { BluetoothSerialController } from "@/hooks/use-bluetooth-serial";
+import type { ConnectionAction, ReceiverDevice, StatusBanner } from "@/features/gps/presentation/types";
+import type { ReceiverModel } from "@/lib/gps/receiver-profiles";
 
 import {
   ActionButton,
@@ -20,30 +21,45 @@ import {
 import { styles } from "./styles";
 import { SettingsCard } from "./settings-card";
 
-export function BluetoothSettings({
-  bluetooth,
-  onOpenDebug,
-}: {
-  bluetooth: BluetoothSerialController;
+type BluetoothSettingsProps = {
+  devices: readonly ReceiverDevice[];
+  selectedAddress: string | null;
+  connectedAddress: string | null;
+  receiverModel: ReceiverModel | null;
+  profileDisabled: boolean;
+  deviceSelectionDisabled: boolean;
+  isConnected: boolean;
+  isRefreshing: boolean;
+  connectAction: ConnectionAction;
+  connectionBanner: StatusBanner;
+  ntripBanner: StatusBanner | null;
+  onRefresh: () => void;
+  onSelectDevice: (address: string) => void;
+  onSelectReceiverModel: (model: ReceiverModel) => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
   onOpenDebug: () => void;
-}) {
-  const {
-    connectedDevice,
-    connectionMessage,
-    connectSelected,
-    devices,
-    disconnect,
-    isConnecting,
-    isRefreshing,
-    ntripStatus,
-    receiverModel,
-    refreshDevices,
-    selectedAddress,
-    selectedDevice,
-    selectDevice,
-    selectReceiverModel,
-  } = bluetooth;
+};
 
+export function BluetoothSettings({
+  devices,
+  selectedAddress,
+  connectedAddress,
+  receiverModel,
+  profileDisabled,
+  deviceSelectionDisabled,
+  isConnected,
+  isRefreshing,
+  connectAction,
+  connectionBanner,
+  ntripBanner,
+  onRefresh,
+  onSelectDevice,
+  onSelectReceiverModel,
+  onConnect,
+  onDisconnect,
+  onOpenDebug,
+}: BluetoothSettingsProps) {
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -61,8 +77,8 @@ export function BluetoothSettings({
       >
         <ReceiverProfileSelector
           value={receiverModel}
-          disabled={!!connectedDevice}
-          onChange={selectReceiverModel}
+          disabled={profileDisabled}
+          onChange={onSelectReceiverModel}
         />
       </SettingsCard>
 
@@ -74,7 +90,7 @@ export function BluetoothSettings({
             accessibilityRole="button"
             accessibilityLabel="Refresh paired devices"
             disabled={isRefreshing}
-            onPress={() => void refreshDevices()}
+            onPress={onRefresh}
             style={({ pressed }) => [
               styles.refreshButton,
               pressed && styles.pressed,
@@ -92,28 +108,25 @@ export function BluetoothSettings({
         <ReceiverDeviceList
           devices={devices}
           selectedAddress={selectedAddress}
-          connectedAddress={connectedDevice?.address}
-          onSelect={selectDevice}
+          connectedAddress={connectedAddress}
+          disabled={deviceSelectionDisabled}
+          onSelect={onSelectDevice}
         />
       </SettingsCard>
 
       <InfoBanner
-        variant={connectedDevice ? "success" : "info"}
-        message={connectionMessage}
+        variant={connectionBanner.variant}
+        message={connectionBanner.message}
       />
 
-      {!!connectedDevice && (
+      {ntripBanner && (
         <InfoBanner
-          variant={ntripStatus.state === "streaming" ? "success" : ntripStatus.state === "error" ? "error" : "info"}
-          message={
-            ntripStatus.state === "streaming"
-              ? `${ntripStatus.message ?? "NTRIP corrections active"} ${ntripStatus.rtcm.validFrames} valid RTCM frames, ${ntripStatus.bytesSentToReceiver} bytes forwarded.`
-              : (ntripStatus.message ?? "NTRIP is not connected.")
-          }
+          variant={ntripBanner.variant}
+          message={ntripBanner.message}
         />
       )}
 
-      {connectedDevice ? (
+      {isConnected ? (
         <View style={styles.actionRow}>
           <ActionButton
             icon="terminal"
@@ -124,16 +137,16 @@ export function BluetoothSettings({
             danger
             icon="link-off"
             label="Disconnect"
-            onPress={() => void disconnect()}
+            onPress={onDisconnect}
           />
         </View>
       ) : (
         <PrimaryButton
-          disabled={!selectedDevice || !receiverModel || isConnecting}
-          loading={isConnecting}
+          disabled={connectAction.disabled}
+          loading={connectAction.loading}
           icon="bluetooth-connected"
-          label={isConnecting ? "Connecting…" : "Connect selected device"}
-          onPress={() => void connectSelected()}
+          label={connectAction.label}
+          onPress={onConnect}
         />
       )}
     </ScrollView>

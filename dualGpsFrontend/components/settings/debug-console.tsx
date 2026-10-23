@@ -3,33 +3,44 @@ import { useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { GnssSolutionDetails } from "@/components/gps/gnss-solution-details";
-import type { BluetoothSerialController } from "@/hooks/use-bluetooth-serial";
+import type { ConnectionAction, DiagnosticRow } from "@/features/gps/presentation/types";
+import type { GgaFix, GsaDop } from "@/lib/gps/nmea";
+import type { ConsoleEntry } from "@/lib/gps/types";
 
 import { SectionIntro } from "./settings-controls";
 import { styles } from "./styles";
 import { SettingsCard } from "./settings-card";
 
-export function DebugConsole({
-  bluetooth,
-  onSelectDevice,
-}: {
-  bluetooth: BluetoothSerialController;
+type DebugConsoleProps = {
+  isConnected: boolean;
+  deviceName: string;
+  connectionAction: ConnectionAction;
+  showDevicePrompt: boolean;
+  latestFix: GgaFix | null;
+  gsaDop: GsaDop | null;
+  latestLine: string;
+  ntripDetails: readonly DiagnosticRow[];
+  consoleEntries: readonly ConsoleEntry[];
+  onConnectionAction: () => void;
+  onClearConsole: () => void;
   onSelectDevice: () => void;
-}) {
+};
+
+export function DebugConsole({
+  isConnected,
+  deviceName,
+  connectionAction,
+  showDevicePrompt,
+  latestFix,
+  gsaDop,
+  latestLine,
+  ntripDetails,
+  consoleEntries,
+  onConnectionAction,
+  onClearConsole,
+  onSelectDevice,
+}: DebugConsoleProps) {
   const consoleRef = useRef<ScrollView>(null);
-  const {
-    clearConsole,
-    connectedDevice,
-    connectSelected,
-    consoleEntries,
-    disconnect,
-    gsaDop,
-    isConnecting,
-    latestFix,
-    latestLine,
-    selectedDevice,
-    ntripStatus,
-  } = bluetooth;
 
   return (
     <ScrollView
@@ -49,30 +60,9 @@ export function DebugConsole({
       </SettingsCard>
       <SettingsCard title="NTRIP corrections">
         <View style={{ gap: 7, marginTop: 14 }}>
-          <Text>State: {ntripStatus.state}</Text>
-
-          <Text>Message: {ntripStatus.message ?? "—"}</Text>
-
-          <Text>Correction bytes received: {ntripStatus.bytesReceived}</Text>
-
-          <Text>
-            Bytes written to receiver: {ntripStatus.bytesSentToReceiver}
-          </Text>
-
-          <Text>Valid RTCM frames: {ntripStatus.rtcm.validFrames}</Text>
-
-          <Text>Invalid RTCM frames: {ntripStatus.rtcm.invalidFrames}</Text>
-
-          <Text>
-            Last RTCM message: {ntripStatus.rtcm.lastMessageType ?? "—"}
-          </Text>
-
-          <Text>
-            Last GGA written:{" "}
-            {ntripStatus.lastGgaSentAt
-              ? new Date(ntripStatus.lastGgaSentAt).toLocaleTimeString()
-              : "Not sent yet"}
-          </Text>
+          {ntripDetails.map(({ label, value }) => (
+            <Text key={label}>{label}: {value}</Text>
+          ))}
         </View>
       </SettingsCard>
       <SectionIntro
@@ -86,42 +76,34 @@ export function DebugConsole({
           <View
             style={[
               styles.connectionIndicator,
-              connectedDevice && styles.connectionIndicatorOnline,
+              isConnected && styles.connectionIndicatorOnline,
             ]}
           />
           <View style={styles.debugDeviceCopy}>
             <Text style={styles.debugDeviceLabel}>DATA SOURCE</Text>
             <Text style={styles.debugDeviceName} numberOfLines={1}>
-              {connectedDevice
-                ? (connectedDevice.name ?? connectedDevice.address)
-                : selectedDevice
-                  ? (selectedDevice.name ?? selectedDevice.address)
-                  : "No device selected"}
+              {deviceName}
             </Text>
           </View>
         </View>
         <Pressable
-          disabled={!connectedDevice && (!selectedDevice || isConnecting)}
-          onPress={() =>
-            void (connectedDevice ? disconnect() : connectSelected())
-          }
+          accessibilityRole="button"
+          accessibilityLabel={connectionAction.label}
+          disabled={connectionAction.disabled}
+          onPress={onConnectionAction}
           style={({ pressed }) => [
             styles.compactButton,
-            !connectedDevice && !selectedDevice && styles.buttonDisabled,
+            connectionAction.disabled && styles.buttonDisabled,
             pressed && styles.pressed,
           ]}
         >
           <Text style={styles.compactButtonText}>
-            {connectedDevice
-              ? "Disconnect"
-              : isConnecting
-                ? "Connecting…"
-                : "Connect"}
+            {connectionAction.label}
           </Text>
         </Pressable>
       </View>
 
-      {!selectedDevice && !connectedDevice && (
+      {showDevicePrompt && (
         <Pressable onPress={onSelectDevice} style={styles.selectDevicePrompt}>
           <MaterialIcons name="bluetooth-searching" size={20} color="#0284C7" />
           <Text style={styles.selectDevicePromptText}>
@@ -137,17 +119,17 @@ export function DebugConsole({
             <View
               style={[
                 styles.consoleLiveDot,
-                connectedDevice && styles.consoleLiveDotActive,
+                isConnected && styles.consoleLiveDotActive,
               ]}
             />
             <Text style={styles.consoleTitle}>
-              {connectedDevice ? "LIVE STREAM" : "STREAM PAUSED"}
+              {isConnected ? "LIVE STREAM" : "STREAM PAUSED"}
             </Text>
           </View>
           <Pressable
             disabled={!consoleEntries.length}
             hitSlop={8}
-            onPress={clearConsole}
+            onPress={onClearConsole}
           >
             <Text
               style={[
