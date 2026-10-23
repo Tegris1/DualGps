@@ -8,6 +8,7 @@ import { OFFLINE_ACCOUNT, OfflineSessionProvider, useOfflineSession } from "../.
 import { TerrainProjectProvider, useTerrainProject } from "../../features/terrain/project-context";
 import { DEFAULT_VIEW } from "../../features/terrain/preview-models";
 import { clearTerrainPreviewCache, TerrainPreviewScene } from "../../features/terrain/terrain-preview-scene";
+import { TerrainPreviewErrorView } from "../../features/terrain/components/terrain-preview-error-view";
 
 jest.mock("../../assets/terrain/Original.glb", () => 11);
 jest.mock("../../assets/terrain/Target.glb", () => 12);
@@ -94,6 +95,7 @@ it("enables preview controls after loading and preserves rotation, zoom, top vie
   const controls = ["Rotate left", "Rotate right", "Reset view", "Zoom in", "Zoom out", "Top view"];
   for (const label of controls) expect(button(label).props.disabled).toBe(true);
   await act(() => scene().onLoaded());
+  const onLoaded = scene().onLoaded;
   for (const label of controls) expect(button(label).props.disabled).toBe(false);
 
   await act(() => button("Rotate left").props.onPress());
@@ -108,6 +110,7 @@ it("enables preview controls after loading and preserves rotation, zoom, top vie
   expect(scene().view.elevation).toBeGreaterThan(DEFAULT_VIEW.elevation);
   await act(() => button("Reset view").props.onPress());
   expect(scene().view).toEqual(DEFAULT_VIEW);
+  expect(scene().onLoaded).toBe(onLoaded);
 });
 
 it("keeps layer switches independent, routes each Change action correctly, and signs out from the header", async () => {
@@ -149,4 +152,35 @@ it("submits offline credentials through the shared primary button and clears an 
   await act(() => button("Sign in").props.onPress());
   expect(session.isSignedIn).toBe(true);
   expect(root.root.findAll((node: any) => node.props.accessibilityRole === "alert")).toHaveLength(0);
+});
+
+it("waits for both selected terrains before mounting the scene", async () => {
+  await act(() => { root = create(<App />); });
+  expect(TerrainPreviewScene).not.toHaveBeenCalled();
+  await act(() => { project.selectCurrentTerrain("original"); });
+  expect(TerrainPreviewScene).not.toHaveBeenCalled();
+  await act(() => { project.selectTargetTerrain("target"); });
+  expect(TerrainPreviewScene).toHaveBeenCalled();
+  expect(button("Rotate left").props.disabled).toBe(true);
+});
+
+it("retries without clearing model caches when there is no complete terrain selection", async () => {
+  await act(() => { root = create(<App screen="error" />); });
+  await act(async () => { await button("Retry").props.onPress(); });
+  expect(clearTerrainPreviewCache).not.toHaveBeenCalled();
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
+it("renders the preview error view with only a message and callbacks", async () => {
+  const onRetry = jest.fn();
+  const onSignOut = jest.fn();
+  await act(() => {
+    root = create(<TerrainPreviewErrorView message="Models unavailable" onRetry={onRetry} onSignOut={onSignOut} />);
+  });
+  expect(root.root.findAllByType(Text).some((node: any) => node.props.children === "Models unavailable")).toBe(true);
+  await act(() => button("Retry").props.onPress());
+  await act(() => button("Sign out").props.onPress());
+  expect(onRetry).toHaveBeenCalledTimes(1);
+  expect(onSignOut).toHaveBeenCalledTimes(1);
+  expect(clearTerrainPreviewCache).not.toHaveBeenCalled();
 });
