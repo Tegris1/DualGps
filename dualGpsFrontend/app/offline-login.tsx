@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { OFFLINE_ACCOUNT, useOfflineSession } from "@/features/auth/offline-session-context";
+import { TerrainButton } from "@/features/terrain/components/terrain-button";
+import { TerrainHeader } from "@/features/terrain/components/terrain-header";
+import { terrainColors, terrainTypography } from "@/features/terrain/theme";
 
 export default function OfflineLogin() {
   const { signIn } = useOfflineSession();
@@ -16,9 +19,7 @@ export default function OfflineLogin() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <Text style={styles.eyebrow}>DUAL GPS</Text>
-        <Text style={styles.title}>Sign in</Text>
-        <Text style={styles.caption}>Explore current and target terrain.</Text>
+        <TerrainHeader title="Sign in" description="Explore current and target terrain." />
         <Text style={styles.label}>Email</Text>
         <TextInput accessibilityLabel="Email" style={styles.input}
           value={email} onChangeText={setEmail} keyboardType="email-address"
@@ -29,11 +30,8 @@ export default function OfflineLogin() {
           autoCapitalize="none" autoCorrect={false} autoComplete="off"
           returnKeyType="go" onSubmitEditing={submit} />
         {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-        <Pressable accessibilityRole="button" onPress={submit}
-          style={({ pressed }) => [styles.button, pressed && { opacity: 0.7 }]}>
-          <Text style={styles.buttonText}>Sign in</Text>
-        </Pressable>
-        <Text style={styles.caption}>Offline account</Text>
+        <TerrainButton label="Sign in" onPress={submit} />
+        <Text style={terrainTypography.caption}>Offline account</Text>
         <Text selectable style={styles.credentials}>{OFFLINE_ACCOUNT.email}{"\n"}{OFFLINE_ACCOUNT.password}</Text>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -41,15 +39,10 @@ export default function OfflineLogin() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f8fafc" },
+  screen: { flex: 1, backgroundColor: terrainColors.background },
   content: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  eyebrow: { fontSize: 11, fontWeight: "700", letterSpacing: 2, color: "#64748b" },
-  title: { fontSize: 28, fontWeight: "700", color: "#0f172a" },
-  caption: { fontSize: 14, color: "#64748b" },
-  label: { fontSize: 14, fontWeight: "600", color: "#334155" },
-  input: { minHeight: 48, padding: 12, borderWidth: 1, borderColor: "#cbd5e1", borderRadius: 8, color: "#0f172a", backgroundColor: "white" },
-  error: { color: "#b91c1c", fontSize: 14 },
-  button: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "#0e7490" },
-  buttonText: { color: "white", fontWeight: "700", fontSize: 16 },
-  credentials: { fontSize: 14, color: "#334155", lineHeight: 22 },
+  label: { fontSize: 14, fontWeight: "600", color: terrainColors.controlText },
+  input: { minHeight: 48, padding: 12, borderWidth: 1, borderColor: terrainColors.border, borderRadius: 8, color: terrainColors.text, backgroundColor: terrainColors.surface },
+  error: { color: terrainColors.error, fontSize: 14 },
+  credentials: { fontSize: 14, color: terrainColors.controlText, lineHeight: 22 },
 });

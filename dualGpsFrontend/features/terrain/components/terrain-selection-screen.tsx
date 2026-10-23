@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { Terrain } from "../terrain-catalog";
 import { TerrainOptionCard } from "./terrain-option-card";
+import { TerrainButton } from "./terrain-button";
+import { TerrainHeader } from "./terrain-header";
+import { terrainColors } from "../theme";
 
 type TerrainSelectionScreenProps = {
   title: string;
@@ -35,14 +38,7 @@ export function TerrainSelectionScreen({
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.row}>
-          <Text style={styles.caption}>DUAL GPS</Text>
-          <Pressable accessibilityRole="button" onPress={onSignOut} hitSlop={10}>
-            <Text style={styles.link}>Sign out</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.caption}>{description}</Text>
+        <TerrainHeader title={title} description={description} onSignOut={onSignOut} style={styles.header} />
         {children}
         {terrains.map((terrain) => (
           <TerrainOptionCard
@@ -52,28 +48,18 @@ export function TerrainSelectionScreen({
             onSelect={onSelect}
           />
         ))}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canContinue }}
+        <TerrainButton
+          label={nextLabel}
           disabled={!canContinue}
           onPress={onNext}
-          style={[styles.button, !canContinue && styles.disabled]}
-        >
-          <Text style={styles.buttonText}>{nextLabel}</Text>
-        </Pressable>
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f8fafc" },
+  screen: { flex: 1, backgroundColor: terrainColors.background },
   content: { flexGrow: 1, padding: 24, gap: 20 },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontSize: 28, fontWeight: "700", color: "#0f172a" },
-  caption: { fontSize: 14, color: "#64748b" },
-  link: { fontSize: 14, color: "#0e7490", fontWeight: "600" },
-  button: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "#0e7490" },
-  buttonText: { color: "white", fontWeight: "700", fontSize: 16 },
-  disabled: { opacity: 0.4 },
+  header: { gap: 20 },
 });

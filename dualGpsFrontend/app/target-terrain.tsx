@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, Text } from "react-native";
 
 import { useOfflineSession } from "@/features/auth/offline-session-context";
 import { TerrainSelectionScreen } from "@/features/terrain/components/terrain-selection-screen";
 import { useTerrainProject } from "@/features/terrain/project-context";
 import { TERRAIN_CATALOG } from "@/features/terrain/terrain-catalog";
+import { terrainTypography } from "@/features/terrain/theme";
 
 export default function TargetTerrainSelection() {
   const { currentTerrain, targetTerrain, selectTargetTerrain } = useTerrainProject();
@@ -31,12 +32,8 @@ export default function TargetTerrainSelection() {
         accessibilityLabel="Change current terrain"
         onPress={() => router.navigate("/current-terrain")}
       >
-        <Text style={styles.link}>Current surface: {currentTerrain.filename} / Change</Text>
+        <Text style={terrainTypography.link}>Current surface: {currentTerrain.filename} / Change</Text>
       </Pressable>
     </TerrainSelectionScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  link: { fontSize: 14, color: "#0e7490", fontWeight: "600" },
-});

@@ -8,9 +8,10 @@ import {
   Sphere,
   Vector3,
 } from "three";
+import { terrainColors } from "./theme";
 
-export const CURRENT_COLOR = "#a17b54";
-export const TARGET_COLOR = "#0891b2";
+export const CURRENT_COLOR = terrainColors.currentTerrain;
+export const TARGET_COLOR = terrainColors.accent;
 export const DEFAULT_VIEW = { yaw: Math.PI / 4, elevation: Math.PI / 5, zoom: 1 };
 export type PreviewView = typeof DEFAULT_VIEW;
 

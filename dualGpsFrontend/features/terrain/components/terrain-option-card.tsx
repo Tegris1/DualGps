@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import type { Terrain } from "../terrain-catalog";
+import { terrainColors, terrainTypography } from "../theme";
 
 type TerrainOptionCardProps = {
   terrain: Terrain;
@@ -18,16 +19,14 @@ export function TerrainOptionCard({ terrain, selected, onSelect }: TerrainOption
       style={[styles.card, selected && styles.selected]}
     >
       <Text style={styles.name}>{terrain.name}</Text>
-      <Text style={styles.caption}>{terrain.filename} / GLB</Text>
-      <Text style={styles.link}>{selected ? "Selected" : "Select terrain"}</Text>
+      <Text style={terrainTypography.caption}>{terrain.filename} / GLB</Text>
+      <Text style={terrainTypography.link}>{selected ? "Selected" : "Select terrain"}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 20, gap: 10, borderWidth: 2, borderColor: "#cbd5e1", borderRadius: 12, backgroundColor: "white" },
-  selected: { borderColor: "#0891b2", backgroundColor: "#ecfeff" },
-  name: { fontSize: 18, fontWeight: "600", color: "#1e293b" },
-  caption: { fontSize: 14, color: "#64748b" },
-  link: { fontSize: 14, color: "#0e7490", fontWeight: "600" },
+  card: { padding: 20, gap: 10, borderWidth: 2, borderColor: terrainColors.border, borderRadius: 12, backgroundColor: terrainColors.surface },
+  selected: { borderColor: terrainColors.accent, backgroundColor: terrainColors.selected },
+  name: { fontSize: 18, fontWeight: "600", color: terrainColors.heading },
 });

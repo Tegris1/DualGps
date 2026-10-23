@@ -83,6 +83,8 @@ The terrain preview displays the bundled `assets/terrain/Original.glb` and `asse
 
 The `current-terrain` and `target-terrain` routes share `TerrainSelectionScreen` and `TerrainOptionCard` under `features/terrain/components`. The routes own terrain filtering and navigation; the shared components render the layout, selection state, and continue action. Terrain state and rendering also live under `features/terrain`, while the local sign-in session lives under `features/auth`.
 
+Sign-in, selection, and preview reuse `TerrainHeader` and `TerrainButton`. The preview uses `TerrainLayerRow` for each surface's visibility switch and Change action. Shared colors and typography are defined in `features/terrain/theme.ts`, including the surface colors used by the renderer and layer indicators.
+
 From this directory, run in PowerShell:
 
 ```powershell
