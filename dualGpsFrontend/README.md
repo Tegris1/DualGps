@@ -77,7 +77,12 @@ lib/gps/             NMEA, NTRIP, RTCM, and receiver configuration logic
 utils/               Android permission helper
 ```
 
-The main integration point is [use-bluetooth-serial.ts](hooks/use-bluetooth-serial.ts). The protocol modules under [lib/gps](lib/gps) keep parsing and stream handling separate from the screens. [ntrip-connection.ts](lib/gps/ntrip-connection.ts) manages the socket, GGA updates, correction forwarding, and diagnostics.
+[useBluetoothSerial](hooks/use-bluetooth-serial.ts) composes receiver, corrections, and diagnostics once inside `GpsProvider`, preserving the controller consumed by the routes. Screens share that provider session; mounting or unmounting a consumer does not create or stop a native connection.
+
+- [useBluetoothReceiver](features/gps/hooks/use-bluetooth-receiver.ts) owns paired-device discovery, permissions, receiver configuration, and native subscriptions. Connection/session identities reject cancelled attempts, late native results, and stale listeners.
+- [useReceiverDiagnostics](features/gps/hooks/use-receiver-diagnostics.ts) owns NMEA readings and the last 200 console entries. It returns usable GGA sentences for corrections, and resets readings separately from console history.
+- [useNtripSession](features/gps/hooks/use-ntrip-session.ts) binds the React lifecycle and settings to [NtripSession](lib/gps/ntrip-session.ts). The session caches early GGA until configuration finishes, manages retries from 2 seconds up to 30 seconds, and invalidates old callbacks before stopping. Settings updates apply to subsequent starts/retries without reconnecting Bluetooth.
+- [NtripConnection](lib/gps/ntrip-connection.ts) retains socket timeouts, GGA writes, serialized correction forwarding, backpressure, and RTCM diagnostics. Protocol parsing and framing remain under [lib/gps](lib/gps).
 
 The online authentication route [app/auth.tsx](app/auth.tsx) connects [useAuthForm](features/auth/hooks/use-auth-form.ts) to the prop-driven [AuthForm](features/auth/components/auth-form.tsx). Validation lives in [features/auth/validation.ts](features/auth/validation.ts); the hook owns form state, submission, and errors. API calls and session storage stay in the authentication provider, and the root layout's route guard handles successful sign-in redirects.
 
