@@ -4,6 +4,8 @@ import { PerspectiveCamera } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { getPreviewCamera, preparePreviewModels, type PreviewView } from "./preview-models";
+import type { DemoTerrain } from "./terrain-catalog";
+import { createDemoExcavator } from "./excavator-model";
 
 // GLTFLoader probes browser versions even with native texture loading. React
 // Native exposes navigator without userAgent; identify it without claiming a browser.
@@ -11,25 +13,33 @@ if (typeof navigator !== "undefined" && typeof navigator.userAgent !== "string")
   Object.defineProperty(navigator, "userAgent", { value: "ReactNative", configurable: true });
 }
 
-// Static requires let Metro include both GLBs in an installed offline build.
-const CURRENT_MODEL = require("../../demo/Original.glb");
-const TARGET_MODEL = require("../../demo/Target.glb");
-
-export function clearTerrainPreviewCache() {
-  useLoader.clear(GLTFLoader, [CURRENT_MODEL, TARGET_MODEL]);
+export function clearTerrainPreviewCache(current: DemoTerrain, target: DemoTerrain) {
+  useLoader.clear(GLTFLoader, [current.asset, target.asset]);
 }
 
 type SceneProps = {
+  currentTerrain: DemoTerrain;
+  targetTerrain: DemoTerrain;
   view: PreviewView;
   showCurrent: boolean;
   showTarget: boolean;
   onLoaded: () => void;
 };
 
-function Terrains({ view, showCurrent, showTarget, onLoaded }: SceneProps) {
-  const [current, target] = useLoader(GLTFLoader, [CURRENT_MODEL, TARGET_MODEL]);
+function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget, onLoaded }: SceneProps) {
+  const [current, target] = useLoader(GLTFLoader, [currentTerrain.asset, targetTerrain.asset]);
   const models = useMemo(
-    () => preparePreviewModels(current.scene, target.scene),
+    () => {
+      const terrain = preparePreviewModels(current.scene, target.scene);
+      try {
+        const excavator = createDemoExcavator(terrain.current);
+        terrain.bounds.expandByObject(excavator.model).getBoundingSphere(terrain.sphere);
+        return { ...terrain, excavator, dispose: () => { excavator.dispose(); terrain.dispose(); } };
+      } catch (error) {
+        terrain.dispose();
+        throw error;
+      }
+    },
     [current.scene, target.scene],
   );
   const { camera, size, invalidate } = useThree();
@@ -54,6 +64,7 @@ function Terrains({ view, showCurrent, showTarget, onLoaded }: SceneProps) {
     <>
       <primitive object={models.current} visible={showCurrent} dispose={null} />
       <primitive object={models.target} visible={showTarget} dispose={null} />
+      <primitive object={models.excavator.model} dispose={null} />
       <gridHelper
         args={[models.sphere.radius * 3, 12, "#94a3b8", "#cbd5e1"]}
         position={[models.sphere.center.x, models.bounds.min.y - 0.1, models.sphere.center.z]}
