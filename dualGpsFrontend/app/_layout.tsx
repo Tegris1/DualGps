@@ -8,6 +8,23 @@ import {
 } from "expo-router";
 import { useEffect } from "react";
 
+const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+
+function AppNavigator() {
+  return (
+    <Stack>
+      <Stack.Protected guard={DEMO_MODE}>
+        <Stack.Screen name="demo-preview" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!DEMO_MODE}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="modal" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, isLoadingUser } = useAuth();
@@ -39,6 +56,8 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  if (DEMO_MODE) return <AppNavigator />;
+
   return (
     <AuthProvider>
       <GpsApp />
@@ -52,14 +71,7 @@ function GpsApp() {
   return (
     <GpsProvider key={user?.email ?? "signed-out"}>
       <RouteGuard>
-        <Stack>
-          <Stack.Screen
-            name="(tabs)"
-            options={{
-              headerShown: false,
-            }}
-          />
-        </Stack>
+        <AppNavigator />
       </RouteGuard>
     </GpsProvider>
   );

@@ -34,7 +34,6 @@ build/
 
 
 dualGpsFrontend/node_modules/
-dualGpsFrontend/package-lock.json
-package-lock.json
 
 .env
+/docs
