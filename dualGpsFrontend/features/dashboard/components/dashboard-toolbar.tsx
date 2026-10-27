@@ -8,12 +8,15 @@ type Props = {
   cameraControlsVisible: boolean;
   onToggleCameraControls: () => void;
   onResetView: () => void;
+  layersEnabled: boolean;
+  layerControlsVisible: boolean;
+  onToggleLayerControls: () => void;
 };
 
-export function DashboardToolbar({ cameraEnabled, cameraControlsVisible, onToggleCameraControls, onResetView }: Props) {
+export function DashboardToolbar({ cameraEnabled, cameraControlsVisible, onToggleCameraControls, onResetView, layersEnabled, layerControlsVisible, onToggleLayerControls }: Props) {
   const items = [
     { label: "Widok", icon: "open-with", disabled: !cameraEnabled, hint: cameraEnabled ? "Kamera 3D" : "Wczytaj teren", expanded: cameraControlsVisible, onPress: onToggleCameraControls },
-    { label: "Warstwy", icon: "layers", disabled: true, hint: "Wkrótce" },
+    { label: "Warstwy", icon: "layers", disabled: !layersEnabled, hint: "Powierzchnie 3D", expanded: layerControlsVisible, onPress: onToggleLayerControls },
     { label: "Reset", icon: "restart-alt", disabled: !cameraEnabled, hint: cameraEnabled ? "Reset kamery" : "Wczytaj teren", onPress: onResetView },
     { label: "Menu", icon: "menu", disabled: true, hint: "Wkrótce" },
   ] as const;

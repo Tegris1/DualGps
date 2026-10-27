@@ -27,7 +27,14 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => { root = create(<TerrainProjectProvider><Probe /></TerrainProjectProvider>); });
     expect(terrain.currentTerrain).toBeNull();
     expect(terrain.targetTerrain).toBeNull();
-    await act(() => terrain.onOpenSelection());
+    expect(terrain.layerControls.enabled).toBe(true);
+    expect(terrain.layerControls.canChangeVisibility).toBe(false);
+    await act(() => terrain.layerControls.onToggle());
+    expect(terrain.layerControls.visible).toBe(true);
+    await act(() => terrain.layerControls.onCurrentVisibilityChange(false));
+    expect(terrain.preview.showCurrent).toBe(true);
+    await act(() => terrain.layerControls.onChangeCurrent());
+    expect(terrain.layerControls.visible).toBe(false);
     await act(() => terrain.selection.onNext());
     expect(terrain.selection.choosingTarget).toBe(false);
     await act(() => terrain.selection.onSelect("original"));
@@ -70,9 +77,32 @@ it("requires both selections and retries loading without losing the chosen proje
     expect(terrain.sceneKey).toBe(loadedScene);
     expect(terrain.preview.loaded).toBe(true);
 
+    await act(() => terrain.layerControls.onToggle());
+    expect(terrain.layerControls.visible).toBe(true);
+    expect(terrain.cameraControls.visible).toBe(false);
+    expect(terrain.layerControls.canChangeVisibility).toBe(true);
+    await act(() => {
+      terrain.layerControls.onCurrentVisibilityChange(false);
+      terrain.layerControls.onTargetVisibilityChange(false);
+    });
+    expect(terrain.preview.showCurrent).toBe(false);
+    expect(terrain.preview.showTarget).toBe(false);
+    expect(terrain.sceneKey).toBe(loadedScene);
+    expect(terrain.preview.onLoaded).toBe(loadedCallback);
+    await act(() => terrain.cameraControls.onResetView());
+    expect(terrain.preview.showCurrent).toBe(false);
+    expect(terrain.preview.showTarget).toBe(false);
+    await act(() => terrain.cameraControls.onToggle());
+    expect(terrain.layerControls.visible).toBe(false);
+
     await act(() => terrain.onSceneError());
     expect(terrain.cameraControls.enabled).toBe(false);
     expect(terrain.cameraControls.visible).toBe(false);
+    await act(() => terrain.layerControls.onToggle());
+    expect(terrain.layerControls.visible).toBe(true);
+    expect(terrain.layerControls.canChangeVisibility).toBe(false);
+    await act(() => terrain.layerControls.onCurrentVisibilityChange(true));
+    expect(terrain.preview.showCurrent).toBe(false);
 
     const previousScene = terrain.sceneKey;
     await act(() => terrain.onRetry());
@@ -89,6 +119,14 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => terrain.selection.onClose());
     expect(terrain.selection.visible).toBe(false);
     expect(terrain.preview.loaded).toBe(true);
+    await act(() => terrain.layerControls.onChangeTarget());
+    expect(terrain.selection.choosingTarget).toBe(true);
+    expect(terrain.selection.selectedId).toBe("target");
+    await act(() => terrain.selection.onNext());
+    expect(terrain.selection.visible).toBe(false);
+    expect(terrain.currentTerrain?.id).toBe("original");
+    expect(terrain.preview.showCurrent).toBe(false);
+    expect(terrain.preview.showTarget).toBe(false);
   } finally {
     await act(() => root?.unmount());
     errorSpy.mockRestore();
