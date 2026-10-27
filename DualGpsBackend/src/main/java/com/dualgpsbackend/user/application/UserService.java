@@ -70,14 +70,7 @@ public class UserService implements UserDetailsService {
     }
 
     public User makeArchitect(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono uĹĽytkownika"));
-        Role previousRole = getUserRole(user);
-        user.setRole(Role.ARCHITECT);
-        User saved = userRepository.save(user);
-        log.info("User role updated: userId={}, previousRole={}, role={}",
-                saved.getId(), previousRole, saved.getRole());
-        return saved;
+        return updateUserRole(id, Role.ARCHITECT);
     }
 
     public List<User> findAll() {
@@ -102,17 +95,18 @@ public class UserService implements UserDetailsService {
     public User updateUserDetails(UserDTO dto, String email) {
         User oldUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
-        User newUser = userMapper.updateUser(dto, oldUser);
-        User saved = userRepository.save(newUser);
-        log.debug("User details updated: userId={}", saved.getId());
-        return saved;
+        return saveUserDetails(dto, oldUser);
     }
 
     public User updateUserDetails(UserDTO dto, Long id) {
         User oldUser = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Nie znaleziono użytkownika"));
-        User newUser = userMapper.updateUser(dto, oldUser);
-        User saved = userRepository.save(newUser);
+        return saveUserDetails(dto, oldUser);
+    }
+
+    private User saveUserDetails(UserDTO dto, User user) {
+        User updatedUser = userMapper.updateUser(dto, user);
+        User saved = userRepository.save(updatedUser);
         log.debug("User details updated: userId={}", saved.getId());
         return saved;
     }
