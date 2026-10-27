@@ -11,7 +11,7 @@ export function HeightDifferenceCard({ heightDifference, heightDescription, heig
 
   return (
     <View style={[styles.summaryCard, styles.heightCard, compact && styles.compactSummaryCard]}>
-      <Text style={[styles.cardTitle, compact && styles.compactCardTitle, styles.lightText]}>RÓŻNICA DO PROJEKTU</Text>
+      <Text style={[styles.cardTitle, compact && styles.compactCardTitle, styles.lightText]}>RÓŻNICA DO PROJEKTU · DEMO</Text>
       <View style={styles.heightValueRow}>
         <MaterialIcons name={icon} size={compact ? 30 : 42} color="#ffffff" />
         <Text style={[styles.heightValue, compact && styles.compactHeightValue]}>{heightDifference}</Text>

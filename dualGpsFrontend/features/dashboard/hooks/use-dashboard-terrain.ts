@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useTerrainPreview } from "@/features/terrain/hooks/use-terrain-preview";
 import { useTerrainProject } from "@/features/terrain/project-context";
 import { TERRAIN_CATALOG } from "@/features/terrain/terrain-catalog";
 import { clearTerrainPreviewCache } from "@/features/terrain/terrain-preview-scene";
+import type { BucketCrossSections } from "@/features/terrain/terrain-cross-section";
+
+import { getTerrainCrossSectionPresentation, type TerrainSectionState } from "../presentation/terrain-cross-section";
 
 export function useDashboardTerrain() {
   const { currentTerrain, targetTerrain, selectCurrentTerrain, selectTargetTerrain } = useTerrainProject();
@@ -13,6 +16,17 @@ export function useDashboardTerrain() {
   const [activePanel, setActivePanel] = useState<"camera" | "layers" | null>(null);
   const [failedScene, setFailedScene] = useState<string | null>(null);
   const sceneKey = `${preview.modelPair}:${attempt}`;
+  const activeScene = useRef(sceneKey);
+  const [sectionSnapshot, setSectionSnapshot] = useState<{ sceneKey: string; data: BucketCrossSections } | null>(null);
+  useLayoutEffect(() => { activeScene.current = sceneKey; }, [sceneKey]);
+  const onCrossSection = useCallback((data: BucketCrossSections) => {
+    if (activeScene.current === sceneKey) setSectionSnapshot({ sceneKey, data });
+  }, [sceneKey]);
+  const sectionState: TerrainSectionState = !currentTerrain || !targetTerrain ? "unselected"
+    : failedScene === sceneKey ? "error"
+    : !preview.loaded || sectionSnapshot?.sceneKey !== sceneKey ? "loading" : "ready";
+  const sectionData = sectionSnapshot?.sceneKey === sceneKey ? sectionSnapshot.data : null;
+  const crossSection = useMemo(() => getTerrainCrossSectionPresentation(sectionData, sectionState), [sectionData, sectionState]);
   const cameraEnabled = preview.loaded && failedScene !== sceneKey && step === null;
   const choosingTarget = step === "target";
   const options = TERRAIN_CATALOG.filter((terrain) => choosingTarget
@@ -43,6 +57,8 @@ export function useDashboardTerrain() {
     targetTerrain,
     preview,
     sceneKey,
+    crossSection,
+    onCrossSection,
     onSceneError: () => {
       setFailedScene(sceneKey);
       setActivePanel((panel) => panel === "camera" ? null : panel);

@@ -1,4 +1,4 @@
-import type { CrossSectionData, CrossSectionModel } from "./cross-section";
+import type { CrossSectionData } from "./cross-section";
 
 export type DashboardSensor = {
   id: string;
@@ -29,7 +29,6 @@ export type DashboardViewModel = {
   heightDifference: string;
   heightDescription: string;
   heightDirection: "up" | "down" | "level";
-  crossSection: CrossSectionModel | null;
   pitch: string;
   roll: string;
   imuSummary: string;

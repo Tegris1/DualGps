@@ -61,7 +61,7 @@ export function DashboardLayerControls({ visible, canChangeVisibility, currentFi
       <Text style={styles.note}>
         {!canChangeVisibility ? "Wybierz i wczytaj oba modele, aby zmieniać widoczność."
           : !showCurrent && !showTarget ? "Obie powierzchnie są ukryte. Koparka i siatka pozostają widoczne."
-          : "Widoczność dotyczy podglądu 3D. Przekrój pozostaje przykładowy."}
+          : "Widoczność dotyczy podglądu 3D. Przekrój pokazuje oba modele."}
       </Text>
     </View>
   );

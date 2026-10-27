@@ -9,6 +9,9 @@ type Props = {
   heightDifference: string;
   compact?: boolean;
   plotHeight?: number;
+  elevationLabel: string;
+  distanceLabel: string;
+  emptyMessage: string;
 };
 
 const colors = { current: "#ad8057", target: "#0096b4", bucket: "#d85728", grid: "#dce5eb" };
@@ -32,10 +35,10 @@ function ProfileLine({ segment, width, height, color }: { segment: PlotSegment; 
   }]} />;
 }
 
-export function BucketCrossSection({ model, heightDifference, compact = false, plotHeight = 160 }: Props) {
+export function BucketCrossSection({ model, heightDifference, compact = false, plotHeight = 160, elevationLabel, distanceLabel, emptyMessage }: Props) {
   const [width, setWidth] = useState(0);
 
-  if (!model) return <Text style={styles.note}>Brak danych przekroju.</Text>;
+  if (!model) return <Text style={styles.note}>{emptyMessage}</Text>;
 
   const bucketX = model.bucket.x * width;
   const bucketY = model.bucket.y * plotHeight;
@@ -51,12 +54,12 @@ export function BucketCrossSection({ model, heightDifference, compact = false, p
           </View>
         ))}
       </View>
-      {!compact && <Text style={styles.note}>Przykładowe wysokości [m]</Text>}
-      <View style={[styles.chart, compact && styles.compactChart]} accessible accessibilityRole="image" accessibilityLabel={`Przykładowy przekrój pomiaru i projektu przez łyżkę. Różnica do projektu: ${heightDifference}.`}>
+      {!compact && <Text style={styles.note}>{elevationLabel}</Text>}
+      <View style={[styles.chart, compact && styles.compactChart]} accessible accessibilityRole="image" accessibilityLabel={`Przekrój pomiaru i projektu przez łyżkę. ${elevationLabel}. ${distanceLabel}. Różnica do projektu: ${heightDifference}.`}>
         <View style={{ height: plotHeight }} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
           {model.elevationTicks.filter((_, index) => !compact || index % 2 === 0).map((tick) => (
             <View key={tick.label} style={[styles.gridLine, { top: tick.position * plotHeight }]}>
-              <Text maxFontSizeMultiplier={1.4} style={styles.elevationLabel}>{tick.label}</Text>
+              <Text maxFontSizeMultiplier={1.4} adjustsFontSizeToFit numberOfLines={1} style={styles.elevationLabel}>{tick.label}</Text>
             </View>
           ))}
           {width > 0 && <>
@@ -77,7 +80,7 @@ export function BucketCrossSection({ model, heightDifference, compact = false, p
           </>}
         </View>
       </View>
-      <Text style={styles.axisTitle}>Odległość od łyżki [m]</Text>
+      <Text style={styles.axisTitle}>{distanceLabel}</Text>
     </View>
   );
 }

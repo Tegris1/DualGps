@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { dashboardStyles as styles } from "../styles";
 import type { DashboardViewModel } from "../types";
 import type { DashboardLayout } from "../hooks/use-dashboard-layout";
-import { BucketCrossSection } from "./bucket-cross-section";
 import { HeightDifferenceCard } from "./height-difference-card";
 import { MachineInclinationCard } from "./machine-inclination-card";
 import { SensorStatusCard } from "./sensor-status-card";
@@ -14,13 +13,14 @@ import { SensorStatusCard } from "./sensor-status-card";
 type DashboardViewProps = {
   data: DashboardViewModel;
   terrain: ReactNode;
+  crossSection: ReactNode;
   toolbar: ReactNode;
   focusTerrain: boolean;
   menu: ReactNode;
   layout: DashboardLayout;
 };
 
-export function DashboardView({ data, terrain, toolbar, focusTerrain, menu, layout }: DashboardViewProps) {
+export function DashboardView({ data, terrain, crossSection, toolbar, focusTerrain, menu, layout }: DashboardViewProps) {
   const direction = layout.wide ? styles.row : styles.column;
   const { compact } = layout;
   const scroll = useRef<ScrollView>(null);
@@ -53,8 +53,7 @@ export function DashboardView({ data, terrain, toolbar, focusTerrain, menu, layo
             {terrain}
           </View>
           <View style={[styles.workspacePanel, styles.crossSectionPanel, compact && [styles.compactWorkspacePanel, { minHeight: layout.workspaceHeight }]]}>
-            <Text style={[styles.panelHeading, compact && styles.compactCardTitle]}>PRZEKRÓJ PRZEZ ŁYŻKĘ{compact ? " · DEMO [m]" : ""}</Text>
-            <BucketCrossSection compact={compact} plotHeight={layout.plotHeight} model={data.crossSection} heightDifference={data.heightDifference} />
+            {crossSection}
           </View>
         </View>
       </ScrollView>

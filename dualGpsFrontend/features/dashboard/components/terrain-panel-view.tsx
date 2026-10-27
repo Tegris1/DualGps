@@ -35,7 +35,7 @@ export function TerrainPanelView({ currentFilename, targetFilename, onChooseTerr
         {currentFilename ? `Pomiar: ${currentFilename}` : "Pomiar: nie wybrano"}{"\n"}
         {targetFilename ? `Projekt: ${targetFilename}` : "Projekt: nie wybrano"}
       </Text>}
-      {!compact && <Text style={styles.demoNote}>Położenie koparki jest przykładowe. Wskaźniki i przekrój korzystają z danych demonstracyjnych.</Text>}
+      {!compact && <Text style={styles.demoNote}>Koparka i wskaźniki są przykładowe. Przekrój pochodzi z modeli, w jednostkach modelu.</Text>}
     </View>
   );
 }

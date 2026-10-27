@@ -7,6 +7,6 @@ export function useDashboard(): DashboardViewModel {
 
   return getDashboardPresentation({
     primaryGnss: receiverGnss,
-    sourceLabel: "GNSS 1: ODBIORNIK · RESZTA: DEMO",
+    sourceLabel: "GNSS 1: ODBIORNIK · IMU: DEMO",
   });
 }

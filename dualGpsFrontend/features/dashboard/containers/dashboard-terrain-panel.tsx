@@ -31,7 +31,7 @@ type Props = {
 };
 
 export function DashboardTerrainPanel({ controller, controls, compact = false }: Props) {
-  const { currentTerrain, targetTerrain, preview, sceneKey, onSceneError, onRetry, onOpenSelection, selection } = controller;
+  const { currentTerrain, targetTerrain, preview, sceneKey, onSceneError, onRetry, onOpenSelection, selection, onCrossSection } = controller;
 
   return (
     <>
@@ -46,6 +46,7 @@ export function DashboardTerrainPanel({ controller, controls, compact = false }:
                 showCurrent={preview.showCurrent}
                 showTarget={preview.showTarget}
                 onLoaded={preview.onLoaded}
+                onCrossSection={onCrossSection}
               />
               {!preview.loaded && <TerrainPanelLoading />}
             </View>

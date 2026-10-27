@@ -3,6 +3,7 @@ import { DashboardLayerControls } from "../components/dashboard-layer-controls";
 import { DashboardMenu } from "../components/dashboard-menu";
 import { DashboardToolbar } from "../components/dashboard-toolbar";
 import { DashboardView } from "../components/dashboard-view";
+import { TerrainCrossSectionPanel } from "../components/terrain-cross-section-panel";
 import { useDashboardLayout } from "../hooks/use-dashboard-layout";
 import { useDashboardTerrain } from "../hooks/use-dashboard-terrain";
 import { useDashboardMenu, type DashboardMenuActions } from "../hooks/use-dashboard-menu";
@@ -20,6 +21,7 @@ export function DashboardScreen({ data, ...actions }: DashboardMenuActions & { d
     <DashboardView
       data={data}
       layout={layout}
+      crossSection={<TerrainCrossSectionPanel section={terrain.crossSection} compact={layout.compact} plotHeight={layout.plotHeight} />}
       terrain={
         <DashboardTerrainPanel compact={layout.compact} controller={terrain} controls={<>
           <DashboardCameraControls {...camera} />

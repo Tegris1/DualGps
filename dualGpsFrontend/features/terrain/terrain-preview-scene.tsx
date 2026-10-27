@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property -- React Three Fiber defines its own JSX properties. */
 import { Canvas, useLoader, useThree } from "@react-three/fiber/native";
 import { Suspense, useEffect, useLayoutEffect, useMemo } from "react";
 import { PerspectiveCamera } from "three";
@@ -6,6 +7,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { getPreviewCamera, preparePreviewModels, type PreviewView } from "./preview-models";
 import type { Terrain } from "./terrain-catalog";
 import { createExcavator } from "./excavator-model";
+import { getBucketCrossSections, type BucketCrossSections } from "./terrain-cross-section";
 
 // GLTFLoader probes browser versions even with native texture loading. React
 // Native exposes navigator without userAgent; identify it without claiming a browser.
@@ -24,18 +26,23 @@ type SceneProps = {
   showCurrent: boolean;
   showTarget: boolean;
   onLoaded: () => void;
+  onCrossSection?: (section: BucketCrossSections) => void;
 };
 
-function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget, onLoaded }: SceneProps) {
+function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget, onLoaded, onCrossSection }: SceneProps) {
   const [current, target] = useLoader(GLTFLoader, [currentTerrain.asset, targetTerrain.asset]);
   const models = useMemo(
     () => {
       const terrain = preparePreviewModels(current.scene, target.scene);
+      let excavator: ReturnType<typeof createExcavator> | undefined;
       try {
-        const excavator = createExcavator(terrain.current);
+        excavator = createExcavator(terrain.current);
         terrain.bounds.expandByObject(excavator.model).getBoundingSphere(terrain.sphere);
-        return { ...terrain, excavator, dispose: () => { excavator.dispose(); terrain.dispose(); } };
+        const machine = excavator;
+        const crossSection = getBucketCrossSections(terrain.current, terrain.target, machine.bucketTip);
+        return { ...terrain, excavator: machine, crossSection, dispose: () => { machine.dispose(); terrain.dispose(); } };
       } catch (error) {
+        excavator?.dispose();
         terrain.dispose();
         throw error;
       }
@@ -55,10 +62,12 @@ function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget
     invalidate();
   }, [camera, invalidate, models, size.width, size.height, view]);
 
+  useEffect(() => () => models.dispose(), [models]);
+
   useEffect(() => {
+    onCrossSection?.(models.crossSection);
     onLoaded();
-    return models.dispose;
-  }, [models, onLoaded]);
+  }, [models, onLoaded, onCrossSection]);
 
   return (
     <>

@@ -2,6 +2,11 @@ import { Mesh, Object3D, Vector3 } from "three";
 
 export type SectionPoint = { distance: number; elevation: number };
 export type SectionSegment = [SectionPoint, SectionPoint];
+export type BucketCrossSections = {
+  current: SectionSegment[];
+  target: SectionSegment[];
+  bucket: SectionPoint;
+};
 const EPSILON = 1e-6; // World-coordinate tolerance; no assumption that source units are metres.
 
 // Independent triangle intersections preserve gaps and overlapping surface layers.
@@ -50,7 +55,7 @@ export function getTerrainCrossSection(terrain: Object3D, origin: Vector3, diggi
   return segments.sort((a, b) => a[0].distance - b[0].distance || a[0].elevation - b[0].elevation);
 }
 
-export function getBucketCrossSections(current: Object3D, target: Object3D, bucketTip: Object3D) {
+export function getBucketCrossSections(current: Object3D, target: Object3D, bucketTip: Object3D): BucketCrossSections {
   bucketTip.updateWorldMatrix(true, false);
   const origin = bucketTip.getWorldPosition(new Vector3());
   // The procedural excavator digs along local +X; retain its world heading.

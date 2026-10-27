@@ -5,6 +5,7 @@ import { useDashboardTerrain } from "../../features/dashboard/hooks/use-dashboar
 import { TerrainProjectProvider } from "../../features/terrain/project-context";
 import { clearTerrainPreviewCache } from "../../features/terrain/terrain-preview-scene";
 import { DEFAULT_VIEW } from "../../features/terrain/preview-models";
+import type { BucketCrossSections } from "../../features/terrain/terrain-cross-section";
 
 jest.mock("../../assets/terrain/Original.glb", () => 11);
 jest.mock("../../assets/terrain/Target.glb", () => 12);
@@ -53,9 +54,17 @@ it("requires both selections and retries loading without losing the chosen proje
     });
     expect(terrain.cameraControls.visible).toBe(false);
     expect(terrain.preview.view).toEqual(DEFAULT_VIEW);
+    const onCrossSection = terrain.onCrossSection;
+    const modelSection: BucketCrossSections = {
+      current: [[{ distance: -1, elevation: 2 }, { distance: 1, elevation: 2 }]],
+      target: [[{ distance: -1, elevation: 1 }, { distance: 1, elevation: 1 }]],
+      bucket: { distance: 0, elevation: 2 },
+    };
+    await act(() => onCrossSection(modelSection));
     await act(() => terrain.preview.onLoaded());
     expect(terrain.preview.loaded).toBe(true);
     expect(terrain.cameraControls.enabled).toBe(true);
+    expect(terrain.crossSection.comparisonLabel).toBe("+1,000 j.m.");
 
     const loadedCallback = terrain.preview.onLoaded;
     const loadedScene = terrain.sceneKey;
@@ -74,12 +83,14 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => terrain.cameraControls.onResetView());
     expect(terrain.preview.view).toEqual(DEFAULT_VIEW);
     expect(terrain.preview.onLoaded).toBe(loadedCallback);
+    expect(terrain.onCrossSection).toBe(onCrossSection);
     expect(terrain.sceneKey).toBe(loadedScene);
     expect(terrain.preview.loaded).toBe(true);
 
     await act(() => terrain.layerControls.onToggle());
     expect(terrain.layerControls.visible).toBe(true);
     expect(terrain.cameraControls.visible).toBe(false);
+    expect(terrain.crossSection.model).not.toBeNull();
     expect(terrain.layerControls.canChangeVisibility).toBe(true);
     await act(() => {
       terrain.layerControls.onCurrentVisibilityChange(false);
@@ -98,6 +109,7 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => terrain.onSceneError());
     expect(terrain.cameraControls.enabled).toBe(false);
     expect(terrain.cameraControls.visible).toBe(false);
+    expect(terrain.crossSection.model).toBeNull();
     await act(() => terrain.layerControls.onToggle());
     expect(terrain.layerControls.visible).toBe(true);
     expect(terrain.layerControls.canChangeVisibility).toBe(false);
@@ -112,7 +124,10 @@ it("requires both selections and retries loading without losing the chosen proje
     expect(terrain.cameraControls.enabled).toBe(false);
     expect(terrain.currentTerrain?.id).toBe("original");
     expect(terrain.targetTerrain?.id).toBe("target");
+    await act(() => terrain.onCrossSection(modelSection));
     await act(() => terrain.preview.onLoaded());
+    await act(() => onCrossSection({ ...modelSection, current: [], target: [] }));
+    expect(terrain.crossSection.comparisonLabel).toBe("+1,000 j.m.");
     expect(terrain.preview.loaded).toBe(true);
     expect(terrain.cameraControls.enabled).toBe(true);
     await act(() => terrain.onOpenSelection());
