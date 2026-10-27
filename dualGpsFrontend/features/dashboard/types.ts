@@ -19,7 +19,9 @@ export type DashboardSensorViewModel = {
   id: string;
   label: string;
   statusText: string;
-  available: boolean;
+  source: "demo" | "receiver";
+  tone: "success" | "warning" | "muted";
+  details?: string;
 };
 
 export type DashboardViewModel = {

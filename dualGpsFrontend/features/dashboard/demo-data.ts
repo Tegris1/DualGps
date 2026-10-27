@@ -25,7 +25,6 @@ export const dashboardDemoData: DashboardReadings = {
     { id: "bucket", label: "Łyżka", status: "ok" },
   ],
   gnss: [
-    { id: "gps-1", label: "GPS 1", status: "rtk-fix" },
     { id: "gps-2", label: "GPS 2", status: "rtk-fix" },
   ],
 };
