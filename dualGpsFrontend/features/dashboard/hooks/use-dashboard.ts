@@ -1,3 +1,4 @@
+import { createCrossSectionModel } from "../cross-section";
 import { dashboardDemoData } from "../demo-data";
 import type { DashboardSensor, DashboardSensorViewModel, DashboardViewModel } from "../types";
 
@@ -16,14 +17,16 @@ function sensorViewModel(sensor: DashboardSensor): DashboardSensorViewModel {
 
 export function useDashboard(): DashboardViewModel {
   const data = dashboardDemoData;
-  const difference = data.heightDifferenceMeters;
-  const centimeters = Math.round(Math.abs(difference) * 100);
+  const crossSection = createCrossSectionModel(data.crossSection);
+  const difference = crossSection?.heightDifferenceMeters ?? null;
+  const centimeters = difference === null ? null : Math.round(Math.abs(difference) * 100);
 
   return {
     sourceLabel: "DANE PRZYKŁADOWE",
-    heightDifference: `${signedNumber(difference, 2)} m`,
-    heightDescription: difference === 0 ? "Na poziomie projektu" : `${centimeters} cm ${difference > 0 ? "powyżej" : "poniżej"} projektu`,
-    heightDirection: difference > 0 ? "down" : difference < 0 ? "up" : "level",
+    heightDifference: difference === null ? "—" : `${signedNumber(difference, 2)} m`,
+    heightDescription: difference === null ? "Brak danych projektu pod łyżką" : difference === 0 ? "Na poziomie projektu" : `${centimeters} cm ${difference > 0 ? "powyżej" : "poniżej"} projektu`,
+    heightDirection: difference === null || difference === 0 ? "level" : difference > 0 ? "down" : "up",
+    crossSection,
     pitch: `${signedNumber(data.pitchDegrees, 1)}°`,
     roll: `${signedNumber(data.rollDegrees, 1)}°`,
     imuSummary: `${data.imus.filter((sensor) => sensor.status === "ok").length}/${data.imus.length} OK`,

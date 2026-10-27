@@ -3,7 +3,19 @@ import type { DashboardReadings } from "./types";
 // Presentation fixtures only; these values do not describe connected hardware.
 export const dashboardDemoData: DashboardReadings = {
   source: "demo",
-  heightDifferenceMeters: 0.51,
+  crossSection: {
+    current: [
+      { distance: -3, elevation: 535.6 },
+      { distance: 0, elevation: 536 },
+      { distance: 3, elevation: 536.65 },
+    ],
+    target: [
+      { distance: -3, elevation: 535.05 },
+      { distance: 0, elevation: 535.49 },
+      { distance: 3, elevation: 536.15 },
+    ],
+    bucket: { distance: 0, elevation: 536 },
+  },
   pitchDegrees: 1.2,
   rollDegrees: -0.4,
   imus: [

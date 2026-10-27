@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { dashboardColors, dashboardStyles as styles } from "../styles";
 import type { DashboardViewModel } from "../types";
+import { BucketCrossSection } from "./bucket-cross-section";
 import { DashboardToolbar } from "./dashboard-toolbar";
 import { HeightDifferenceCard } from "./height-difference-card";
 import { MachineInclinationCard } from "./machine-inclination-card";
@@ -45,12 +46,9 @@ export function DashboardView({ data, onSignOut }: DashboardViewProps) {
               <Text style={styles.placeholderText}>Miejsce na podgląd terenu i koparki.</Text>
             </View>
           </View>
-          <View style={styles.workspacePanel}>
+          <View style={[styles.workspacePanel, styles.crossSectionPanel]}>
             <Text style={styles.panelHeading}>PRZEKRÓJ PRZEZ ŁYŻKĘ</Text>
-            <View style={styles.placeholder}>
-              <MaterialIcons name="show-chart" size={52} color={dashboardColors.muted} />
-              <Text style={styles.placeholderText}>Miejsce na przekrój pomiaru, projektu i położenie krawędzi łyżki.</Text>
-            </View>
+            <BucketCrossSection model={data.crossSection} heightDifference={data.heightDifference} />
           </View>
         </View>
         <DashboardToolbar />
