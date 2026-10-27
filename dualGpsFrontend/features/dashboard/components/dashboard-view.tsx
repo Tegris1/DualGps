@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { dashboardStyles as styles } from "../styles";
@@ -15,10 +15,10 @@ type DashboardViewProps = {
   terrain: ReactNode;
   toolbar: ReactNode;
   focusTerrain: boolean;
-  onSignOut: () => void;
+  menu: ReactNode;
 };
 
-export function DashboardView({ data, terrain, toolbar, focusTerrain, onSignOut }: DashboardViewProps) {
+export function DashboardView({ data, terrain, toolbar, focusTerrain, menu }: DashboardViewProps) {
   const { width, fontScale } = useWindowDimensions();
   const layout = width / fontScale >= 720 ? styles.row : styles.column;
   const scroll = useRef<ScrollView>(null);
@@ -29,17 +29,12 @@ export function DashboardView({ data, terrain, toolbar, focusTerrain, onSignOut 
   }, [focusTerrain]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.screen}>
       <StatusBar style="light" />
       <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.brand}>DUAL GPS</Text>
-          <View style={styles.headerActions}>
-            <Text style={styles.demoBadge}>{data.sourceLabel}</Text>
-            <Pressable accessibilityRole="button" onPress={onSignOut} style={({ pressed }) => [styles.signOutButton, pressed && styles.pressed]}>
-              <Text style={styles.signOut}>Wyloguj</Text>
-            </Pressable>
-          </View>
+          <Text style={styles.demoBadge}>{data.sourceLabel}</Text>
         </View>
         <View style={[styles.summary, layout]}>
           <HeightDifferenceCard heightDifference={data.heightDifference} heightDescription={data.heightDescription} heightDirection={data.heightDirection} />
@@ -57,6 +52,7 @@ export function DashboardView({ data, terrain, toolbar, focusTerrain, onSignOut 
         </View>
       </ScrollView>
       <View style={styles.toolbarContainer}>{toolbar}</View>
+      {menu}
     </SafeAreaView>
   );
 }
