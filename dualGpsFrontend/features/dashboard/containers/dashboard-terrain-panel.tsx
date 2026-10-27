@@ -27,17 +27,18 @@ class TerrainSceneBoundary extends Component<{ children: ReactNode; fallback: Re
 type Props = {
   controller: ReturnType<typeof useDashboardTerrain>;
   controls: ReactNode;
+  compact?: boolean;
 };
 
-export function DashboardTerrainPanel({ controller, controls }: Props) {
+export function DashboardTerrainPanel({ controller, controls, compact = false }: Props) {
   const { currentTerrain, targetTerrain, preview, sceneKey, onSceneError, onRetry, onOpenSelection, selection } = controller;
 
   return (
     <>
-      <TerrainPanelView currentFilename={currentTerrain?.filename ?? null} targetFilename={targetTerrain?.filename ?? null} onChooseTerrains={onOpenSelection} controls={controls}>
+      <TerrainPanelView compact={compact} currentFilename={currentTerrain?.filename ?? null} targetFilename={targetTerrain?.filename ?? null} onChooseTerrains={onOpenSelection} controls={controls}>
         {currentTerrain && targetTerrain ? (
-          <TerrainSceneBoundary key={sceneKey} fallback={<TerrainPanelError onRetry={onRetry} />} onError={onSceneError}>
-            <View style={{ flex: 1, minHeight: 220 }}>
+          <TerrainSceneBoundary key={sceneKey} fallback={<TerrainPanelError compact={compact} onRetry={onRetry} />} onError={onSceneError}>
+            <View style={{ flex: 1, minHeight: compact ? 120 : 220 }}>
               <TerrainPreviewScene
                 currentTerrain={currentTerrain}
                 targetTerrain={targetTerrain}

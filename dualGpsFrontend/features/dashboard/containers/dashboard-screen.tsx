@@ -4,12 +4,14 @@ import { DashboardMenu } from "../components/dashboard-menu";
 import { DashboardToolbar } from "../components/dashboard-toolbar";
 import { DashboardView } from "../components/dashboard-view";
 import { useDashboard } from "../hooks/use-dashboard";
+import { useDashboardLayout } from "../hooks/use-dashboard-layout";
 import { useDashboardTerrain } from "../hooks/use-dashboard-terrain";
 import { useDashboardMenu, type DashboardMenuActions } from "../hooks/use-dashboard-menu";
 import { DashboardTerrainPanel } from "./dashboard-terrain-panel";
 
 export function DashboardScreen(actions: DashboardMenuActions) {
   const data = useDashboard();
+  const layout = useDashboardLayout();
   const terrain = useDashboardTerrain();
   const camera = terrain.cameraControls;
   const layers = terrain.layerControls;
@@ -18,13 +20,15 @@ export function DashboardScreen(actions: DashboardMenuActions) {
   return (
     <DashboardView
       data={data}
+      layout={layout}
       terrain={
-        <DashboardTerrainPanel controller={terrain} controls={<>
+        <DashboardTerrainPanel compact={layout.compact} controller={terrain} controls={<>
           <DashboardCameraControls {...camera} />
           <DashboardLayerControls {...layers} />
         </>} />
       }
       toolbar={<DashboardToolbar
+        compact={layout.compact}
         cameraEnabled={camera.enabled}
         cameraControlsVisible={camera.visible}
         onToggleCameraControls={camera.onToggle}
