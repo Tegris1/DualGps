@@ -50,6 +50,7 @@ export const dashboardStyles = StyleSheet.create({
   workspace: { flex: 1, gap: 3 },
   workspacePanel: { flex: 1, minHeight: 220, backgroundColor: "#f5f8fa", padding: 14, gap: 12 },
   crossSectionPanel: { minHeight: 330 },
+  terrainPanel: { minHeight: 400 },
   panelHeading: { fontSize: 12, fontWeight: "800", color: dashboardColors.ink },
   placeholder: { flex: 1, minHeight: 150, borderWidth: 1, borderStyle: "dashed", borderColor: "#b9c9d2", alignItems: "center", justifyContent: "center", padding: 20, gap: 10 },
   placeholderText: { color: dashboardColors.muted, fontSize: 12, textAlign: "center", lineHeight: 18, maxWidth: 260 },

@@ -3,16 +3,16 @@ import { act } from "react";
 import { Button, TextInput } from "react-native-paper";
 import * as SecureStore from "expo-secure-store";
 
-import { authApi } from "../../api/authApi";
+import { authApi } from "../../features/auth/api/auth-api";
 
-jest.mock("../../api/authApi", () => ({
+jest.mock("../../features/auth/api/auth-api", () => ({
   authApi: { login: jest.fn(), register: jest.fn() },
 }));
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn(),
 }));
-jest.mock("../../lib/gps-context", () => ({ GpsProvider: ({ children }: any) => children }));
-jest.mock("../../features/terrain/project-context", () => ({}));
+jest.mock("../../features/gps/gps-context", () => ({ GpsProvider: ({ children }: any) => children }));
+jest.mock("../../features/terrain/project-context", () => ({ TerrainProjectProvider: ({ children }: any) => children }));
 jest.mock("react-native-paper", () => ({
   Button: "PaperButton", Text: "PaperText", TextInput: "PaperTextInput",
   useTheme: () => ({ colors: { error: "red" } }),

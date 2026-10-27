@@ -1,5 +1,5 @@
-import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { GpsProvider } from "@/lib/gps-context";
+import { AuthProvider, useAuth } from "@/features/auth/auth-context";
+import { GpsProvider } from "@/features/gps/gps-context";
 import { OfflineSessionProvider, useOfflineSession } from "@/features/auth/offline-session-context";
 import { TerrainProjectProvider, useTerrainProject } from "@/features/terrain/project-context";
 import {
@@ -93,9 +93,11 @@ function GpsApp() {
 
   return (
     <GpsProvider key={user?.email ?? "signed-out"}>
-      <RouteGuard>
-        <AppNavigator />
-      </RouteGuard>
+      <TerrainProjectProvider>
+        <RouteGuard>
+          <AppNavigator />
+        </RouteGuard>
+      </TerrainProjectProvider>
     </GpsProvider>
   );
 }

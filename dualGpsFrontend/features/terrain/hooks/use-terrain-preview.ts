@@ -17,6 +17,7 @@ export function useTerrainPreview(currentTerrainId: string | null, targetTerrain
   // The scene's loading/disposal effect depends on this callback. Keep it stable
   // while camera and visibility controls change for the same model pair.
   const onLoaded = useCallback(() => setLoadedPair(modelPair), [modelPair]);
+  const onReload = useCallback(() => setLoadedPair(null), []);
 
   function rotateLeft() {
     setView((value) => ({ ...value, yaw: value.yaw - ROTATION_STEP }));
@@ -41,6 +42,7 @@ export function useTerrainPreview(currentTerrainId: string | null, targetTerrain
     showTarget,
     loaded,
     onLoaded,
+    onReload,
     onCurrentVisibilityChange: setShowCurrent,
     onTargetVisibilityChange: setShowTarget,
     onRotateLeft: rotateLeft,

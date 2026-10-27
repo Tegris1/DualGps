@@ -1,9 +1,9 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import type { ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { dashboardColors, dashboardStyles as styles } from "../styles";
+import { dashboardStyles as styles } from "../styles";
 import type { DashboardViewModel } from "../types";
 import { BucketCrossSection } from "./bucket-cross-section";
 import { DashboardToolbar } from "./dashboard-toolbar";
@@ -13,10 +13,11 @@ import { SensorStatusCard } from "./sensor-status-card";
 
 type DashboardViewProps = {
   data: DashboardViewModel;
+  terrain: ReactNode;
   onSignOut: () => void;
 };
 
-export function DashboardView({ data, onSignOut }: DashboardViewProps) {
+export function DashboardView({ data, terrain, onSignOut }: DashboardViewProps) {
   const { width, fontScale } = useWindowDimensions();
   const layout = width / fontScale >= 720 ? styles.row : styles.column;
 
@@ -39,12 +40,8 @@ export function DashboardView({ data, onSignOut }: DashboardViewProps) {
           <SensorStatusCard imuSummary={data.imuSummary} imus={data.imus} gnss={data.gnss} />
         </View>
         <View style={[styles.workspace, layout]}>
-          <View style={styles.workspacePanel}>
-            <Text style={styles.panelHeading}>TEREN 3D</Text>
-            <View style={styles.placeholder}>
-              <MaterialIcons name="terrain" size={52} color={dashboardColors.muted} />
-              <Text style={styles.placeholderText}>Miejsce na podgląd terenu i koparki.</Text>
-            </View>
+          <View style={[styles.workspacePanel, styles.terrainPanel]}>
+            {terrain}
           </View>
           <View style={[styles.workspacePanel, styles.crossSectionPanel]}>
             <Text style={styles.panelHeading}>PRZEKRÓJ PRZEZ ŁYŻKĘ</Text>
