@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { dashboardStyles as styles } from "../styles";
 import type { DashboardViewModel } from "../types";
 import { BucketCrossSection } from "./bucket-cross-section";
-import { DashboardToolbar } from "./dashboard-toolbar";
 import { HeightDifferenceCard } from "./height-difference-card";
 import { MachineInclinationCard } from "./machine-inclination-card";
 import { SensorStatusCard } from "./sensor-status-card";
@@ -14,17 +13,25 @@ import { SensorStatusCard } from "./sensor-status-card";
 type DashboardViewProps = {
   data: DashboardViewModel;
   terrain: ReactNode;
+  toolbar: ReactNode;
+  focusTerrain: boolean;
   onSignOut: () => void;
 };
 
-export function DashboardView({ data, terrain, onSignOut }: DashboardViewProps) {
+export function DashboardView({ data, terrain, toolbar, focusTerrain, onSignOut }: DashboardViewProps) {
   const { width, fontScale } = useWindowDimensions();
   const layout = width / fontScale >= 720 ? styles.row : styles.column;
+  const scroll = useRef<ScrollView>(null);
+  const terrainOffset = useRef(0);
+
+  useEffect(() => {
+    if (focusTerrain) scroll.current?.scrollTo({ y: terrainOffset.current, animated: true });
+  }, [focusTerrain]);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.brand}>DUAL GPS</Text>
           <View style={styles.headerActions}>
@@ -39,8 +46,8 @@ export function DashboardView({ data, terrain, onSignOut }: DashboardViewProps) 
           <MachineInclinationCard pitch={data.pitch} roll={data.roll} />
           <SensorStatusCard imuSummary={data.imuSummary} imus={data.imus} gnss={data.gnss} />
         </View>
-        <View style={[styles.workspace, layout]}>
-          <View style={[styles.workspacePanel, styles.terrainPanel]}>
+        <View style={[styles.workspace, layout]} onLayout={(event) => { terrainOffset.current = event.nativeEvent.layout.y; }}>
+          <View style={[styles.workspacePanel, styles.terrainPanel, focusTerrain && styles.terrainPanelExpanded]}>
             {terrain}
           </View>
           <View style={[styles.workspacePanel, styles.crossSectionPanel]}>
@@ -48,8 +55,8 @@ export function DashboardView({ data, terrain, onSignOut }: DashboardViewProps) 
             <BucketCrossSection model={data.crossSection} heightDifference={data.heightDifference} />
           </View>
         </View>
-        <DashboardToolbar />
       </ScrollView>
+      <View style={styles.toolbarContainer}>{toolbar}</View>
     </SafeAreaView>
   );
 }

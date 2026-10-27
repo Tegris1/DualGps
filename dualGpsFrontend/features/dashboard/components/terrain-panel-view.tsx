@@ -9,9 +9,10 @@ type Props = {
   targetFilename: string | null;
   onChooseTerrains: () => void;
   children?: ReactNode;
+  cameraControls?: ReactNode;
 };
 
-export function TerrainPanelView({ currentFilename, targetFilename, onChooseTerrains, children }: Props) {
+export function TerrainPanelView({ currentFilename, targetFilename, onChooseTerrains, children, cameraControls }: Props) {
   return (
     <View style={styles.panel}>
       <View style={styles.header}>
@@ -28,6 +29,7 @@ export function TerrainPanelView({ currentFilename, targetFilename, onChooseTerr
           </View>
         )}
       </View>
+      {cameraControls}
       <Text style={styles.caption}>
         {currentFilename ? `Pomiar: ${currentFilename}` : "Pomiar: nie wybrano"}{"\n"}
         {targetFilename ? `Projekt: ${targetFilename}` : "Projekt: nie wybrano"}

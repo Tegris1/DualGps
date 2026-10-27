@@ -1,25 +1,40 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { dashboardColors, dashboardStyles as styles } from "../styles";
 
-// Reserve these positions until camera, layer and menu actions are integrated.
-const items = [
-  { label: "Widok", icon: "open-with" },
-  { label: "Warstwy", icon: "layers" },
-  { label: "Reset", icon: "restart-alt" },
-  { label: "Menu", icon: "menu" },
-] as const;
+type Props = {
+  cameraEnabled: boolean;
+  cameraControlsVisible: boolean;
+  onToggleCameraControls: () => void;
+  onResetView: () => void;
+};
 
-export function DashboardToolbar() {
+export function DashboardToolbar({ cameraEnabled, cameraControlsVisible, onToggleCameraControls, onResetView }: Props) {
+  const items = [
+    { label: "Widok", icon: "open-with", disabled: !cameraEnabled, hint: cameraEnabled ? "Kamera 3D" : "Wczytaj teren", expanded: cameraControlsVisible, onPress: onToggleCameraControls },
+    { label: "Warstwy", icon: "layers", disabled: true, hint: "Wkrótce" },
+    { label: "Reset", icon: "restart-alt", disabled: !cameraEnabled, hint: cameraEnabled ? "Reset kamery" : "Wczytaj teren", onPress: onResetView },
+    { label: "Menu", icon: "menu", disabled: true, hint: "Wkrótce" },
+  ] as const;
+
   return (
     <View style={styles.toolbar}>
       {items.map((item) => (
-        <View key={item.label} style={styles.toolbarItem} accessible accessibilityRole="button" accessibilityState={{ disabled: true }} accessibilityLabel={`${item.label}, wkrótce`}>
+        <Pressable
+          key={item.label}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: item.disabled, ...("expanded" in item ? { expanded: item.expanded } : {}) }}
+          accessibilityLabel={item.label}
+          accessibilityHint={item.hint}
+          disabled={item.disabled}
+          onPress={"onPress" in item ? item.onPress : undefined}
+          style={({ pressed }) => [styles.toolbarItem, item.disabled && styles.toolbarDisabled, "expanded" in item && item.expanded && styles.toolbarActive, pressed && styles.pressed]}
+        >
           <MaterialIcons name={item.icon} size={22} color={dashboardColors.yellow} />
           <Text style={styles.toolbarLabel}>{item.label}</Text>
-          <Text style={styles.toolbarNote}>Wkrótce</Text>
-        </View>
+          <Text style={styles.toolbarNote}>{item.hint}</Text>
+        </Pressable>
       ))}
     </View>
   );

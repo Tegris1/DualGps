@@ -4,6 +4,7 @@ import { act } from "react";
 import { useDashboardTerrain } from "../../features/dashboard/hooks/use-dashboard-terrain";
 import { TerrainProjectProvider } from "../../features/terrain/project-context";
 import { clearTerrainPreviewCache } from "../../features/terrain/terrain-preview-scene";
+import { DEFAULT_VIEW } from "../../features/terrain/preview-models";
 
 jest.mock("../../assets/terrain/Original.glb", () => 11);
 jest.mock("../../assets/terrain/Target.glb", () => 12);
@@ -38,18 +39,52 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => terrain.selection.onNext());
     expect(terrain.selection.visible).toBe(false);
     expect(terrain.preview.loaded).toBe(false);
+    expect(terrain.cameraControls.enabled).toBe(false);
+    await act(() => {
+      terrain.cameraControls.onToggle();
+      terrain.cameraControls.onRotateLeft();
+    });
+    expect(terrain.cameraControls.visible).toBe(false);
+    expect(terrain.preview.view).toEqual(DEFAULT_VIEW);
     await act(() => terrain.preview.onLoaded());
     expect(terrain.preview.loaded).toBe(true);
+    expect(terrain.cameraControls.enabled).toBe(true);
+
+    const loadedCallback = terrain.preview.onLoaded;
+    const loadedScene = terrain.sceneKey;
+    await act(() => terrain.cameraControls.onToggle());
+    expect(terrain.cameraControls.visible).toBe(true);
+    await act(() => terrain.cameraControls.onRotateLeft());
+    expect(terrain.preview.view.yaw).toBeLessThan(DEFAULT_VIEW.yaw);
+    await act(() => terrain.cameraControls.onRotateRight());
+    expect(terrain.preview.view.yaw).toBeCloseTo(DEFAULT_VIEW.yaw);
+    await act(() => terrain.cameraControls.onZoomIn());
+    expect(terrain.preview.view.zoom).toBeLessThan(DEFAULT_VIEW.zoom);
+    await act(() => terrain.cameraControls.onZoomOut());
+    expect(terrain.preview.view.zoom).toBeCloseTo(DEFAULT_VIEW.zoom);
+    await act(() => terrain.cameraControls.onTopView());
+    expect(terrain.preview.view.elevation).toBeGreaterThan(DEFAULT_VIEW.elevation);
+    await act(() => terrain.cameraControls.onResetView());
+    expect(terrain.preview.view).toEqual(DEFAULT_VIEW);
+    expect(terrain.preview.onLoaded).toBe(loadedCallback);
+    expect(terrain.sceneKey).toBe(loadedScene);
+    expect(terrain.preview.loaded).toBe(true);
+
+    await act(() => terrain.onSceneError());
+    expect(terrain.cameraControls.enabled).toBe(false);
+    expect(terrain.cameraControls.visible).toBe(false);
 
     const previousScene = terrain.sceneKey;
     await act(() => terrain.onRetry());
     expect(clearTerrainPreviewCache).toHaveBeenCalledWith(terrain.currentTerrain, terrain.targetTerrain);
     expect(terrain.sceneKey).not.toBe(previousScene);
     expect(terrain.preview.loaded).toBe(false);
+    expect(terrain.cameraControls.enabled).toBe(false);
     expect(terrain.currentTerrain?.id).toBe("original");
     expect(terrain.targetTerrain?.id).toBe("target");
     await act(() => terrain.preview.onLoaded());
     expect(terrain.preview.loaded).toBe(true);
+    expect(terrain.cameraControls.enabled).toBe(true);
     await act(() => terrain.onOpenSelection());
     await act(() => terrain.selection.onClose());
     expect(terrain.selection.visible).toBe(false);

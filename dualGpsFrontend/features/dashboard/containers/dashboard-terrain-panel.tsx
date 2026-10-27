@@ -5,9 +5,9 @@ import { TerrainPreviewScene } from "@/features/terrain/terrain-preview-scene";
 
 import { DashboardTerrainPicker } from "../components/dashboard-terrain-picker";
 import { TerrainPanelError, TerrainPanelLoading, TerrainPanelView } from "../components/terrain-panel-view";
-import { useDashboardTerrain } from "../hooks/use-dashboard-terrain";
+import type { useDashboardTerrain } from "../hooks/use-dashboard-terrain";
 
-class TerrainSceneBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+class TerrainSceneBoundary extends Component<{ children: ReactNode; fallback: ReactNode; onError: () => void }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -16,6 +16,7 @@ class TerrainSceneBoundary extends Component<{ children: ReactNode; fallback: Re
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Dashboard terrain preview failed:", error, info.componentStack);
+    this.props.onError();
   }
 
   render() {
@@ -23,14 +24,19 @@ class TerrainSceneBoundary extends Component<{ children: ReactNode; fallback: Re
   }
 }
 
-export function DashboardTerrainPanel() {
-  const { currentTerrain, targetTerrain, preview, sceneKey, onRetry, onOpenSelection, selection } = useDashboardTerrain();
+type Props = {
+  controller: ReturnType<typeof useDashboardTerrain>;
+  cameraControls: ReactNode;
+};
+
+export function DashboardTerrainPanel({ controller, cameraControls }: Props) {
+  const { currentTerrain, targetTerrain, preview, sceneKey, onSceneError, onRetry, onOpenSelection, selection } = controller;
 
   return (
     <>
-      <TerrainPanelView currentFilename={currentTerrain?.filename ?? null} targetFilename={targetTerrain?.filename ?? null} onChooseTerrains={onOpenSelection}>
+      <TerrainPanelView currentFilename={currentTerrain?.filename ?? null} targetFilename={targetTerrain?.filename ?? null} onChooseTerrains={onOpenSelection} cameraControls={cameraControls}>
         {currentTerrain && targetTerrain ? (
-          <TerrainSceneBoundary key={sceneKey} fallback={<TerrainPanelError onRetry={onRetry} />}>
+          <TerrainSceneBoundary key={sceneKey} fallback={<TerrainPanelError onRetry={onRetry} />} onError={onSceneError}>
             <View style={{ flex: 1, minHeight: 220 }}>
               <TerrainPreviewScene
                 currentTerrain={currentTerrain}
