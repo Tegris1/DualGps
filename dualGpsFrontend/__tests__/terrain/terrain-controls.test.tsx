@@ -9,11 +9,16 @@ import { TerrainProjectProvider, useTerrainProject } from "../../features/terrai
 import { DEFAULT_VIEW } from "../../features/terrain/preview-models";
 import { clearTerrainPreviewCache, TerrainPreviewScene } from "../../features/terrain/terrain-preview-scene";
 import { TerrainPreviewErrorView } from "../../features/terrain/components/terrain-preview-error-view";
+import { SensorStatusCard } from "../../features/dashboard/components/sensor-status-card";
 
 jest.mock("../../assets/terrain/Original.glb", () => 11);
 jest.mock("../../assets/terrain/Target.glb", () => 12);
 jest.mock("expo-router", () => ({ useRouter: () => mockRouter }));
-jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
+jest.mock("react-native-safe-area-context", () => ({
+  SafeAreaView: require("react-native").View,
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcon");
 jest.mock("../../features/terrain/terrain-preview-scene", () => ({
   TerrainPreviewScene: jest.fn(() => null), clearTerrainPreviewCache: jest.fn(),
 }));
@@ -92,42 +97,57 @@ async function mountPreview() {
 
 it("enables preview controls after loading and preserves rotation, zoom, top view, and reset actions", async () => {
   await mountPreview();
-  const controls = ["Rotate left", "Rotate right", "Reset view", "Zoom in", "Zoom out", "Top view"];
+  const controls = ["Widok", "Reset"];
   for (const label of controls) expect(button(label).props.disabled).toBe(true);
   await act(() => scene().onLoaded());
   const onLoaded = scene().onLoaded;
   for (const label of controls) expect(button(label).props.disabled).toBe(false);
+  await act(() => button("Widok").props.onPress());
 
-  await act(() => button("Rotate left").props.onPress());
+  await act(() => button("Obrót w lewo").props.onPress());
   expect(scene().view.yaw).toBeLessThan(DEFAULT_VIEW.yaw);
-  await act(() => button("Rotate right").props.onPress());
+  await act(() => button("Obrót w prawo").props.onPress());
   expect(scene().view.yaw).toBeCloseTo(DEFAULT_VIEW.yaw);
-  await act(() => button("Zoom in").props.onPress());
+  await act(() => button("Przybliż").props.onPress());
   expect(scene().view.zoom).toBeLessThan(DEFAULT_VIEW.zoom);
-  await act(() => button("Zoom out").props.onPress());
+  await act(() => button("Oddal").props.onPress());
   expect(scene().view.zoom).toBeCloseTo(DEFAULT_VIEW.zoom);
-  await act(() => button("Top view").props.onPress());
+  await act(() => button("Z góry").props.onPress());
   expect(scene().view.elevation).toBeGreaterThan(DEFAULT_VIEW.elevation);
-  await act(() => button("Reset view").props.onPress());
+  await act(() => button("Reset").props.onPress());
   expect(scene().view).toEqual(DEFAULT_VIEW);
   expect(scene().onLoaded).toBe(onLoaded);
 });
 
-it("keeps layer switches independent, routes each Change action correctly, and signs out from the header", async () => {
+it("keeps offline layers independent, changes terrain in place, and signs out from the offline menu", async () => {
   await mountPreview();
-  await act(() => labeledAction("Show current terrain", "onValueChange").props.onValueChange(false));
+  const sensors = root.root.findByType(SensorStatusCard).props;
+  expect(sensors.gnss).toHaveLength(2);
+  expect(sensors.gnss.every((sensor: { source: string }) => sensor.source === "demo")).toBe(true);
+  await act(() => scene().onLoaded());
+  await act(() => button("Warstwy").props.onPress());
+  await act(() => labeledAction("Pokaż warstwę: Pomiar", "onValueChange").props.onValueChange(false));
   expect(scene().showCurrent).toBe(false);
   expect(scene().showTarget).toBe(true);
-  await act(() => labeledAction("Show target terrain", "onValueChange").props.onValueChange(false));
+  await act(() => labeledAction("Pokaż warstwę: Projekt", "onValueChange").props.onValueChange(false));
   expect(scene().showTarget).toBe(false);
-  await act(() => labeledAction("Show current terrain", "onValueChange").props.onValueChange(true));
+  await act(() => labeledAction("Pokaż warstwę: Pomiar", "onValueChange").props.onValueChange(true));
   expect(scene().showCurrent).toBe(true);
   expect(scene().showTarget).toBe(false);
-  await act(() => labeledAction("Change current terrain", "onPress").props.onPress());
-  expect(mockRouter.navigate).toHaveBeenLastCalledWith("/current-terrain");
-  await act(() => labeledAction("Change target terrain", "onPress").props.onPress());
-  expect(mockRouter.navigate).toHaveBeenLastCalledWith("/target-terrain");
-  await act(() => button("Sign out").props.onPress());
+  await act(() => labeledAction("Zmień warstwę: Pomiar", "onPress").props.onPress());
+  await act(() => button("Dalej: wybierz projekt").props.onPress());
+  await act(() => button("Otwórz podgląd").props.onPress());
+  await act(() => button("Warstwy").props.onPress());
+  await act(() => labeledAction("Zmień warstwę: Projekt", "onPress").props.onPress());
+  await act(() => button("Otwórz podgląd").props.onPress());
+  expect(mockRouter.navigate).not.toHaveBeenCalled();
+  expect(project.currentTerrain?.id).toBe("original");
+  expect(project.targetTerrain?.id).toBe("target");
+  await act(() => button("Menu").props.onPress());
+  const menuText = root.root.findAllByType(Text).map((node: any) => node.props.children);
+  expect(menuText).not.toContain("Połączenie z odbiornikiem");
+  expect(menuText).not.toContain("Ustawienia");
+  await act(() => button("Wyloguj").props.onPress());
   expect(session.isSignedIn).toBe(false);
 });
 
@@ -161,7 +181,7 @@ it("waits for both selected terrains before mounting the scene", async () => {
   expect(TerrainPreviewScene).not.toHaveBeenCalled();
   await act(() => { project.selectTargetTerrain("target"); });
   expect(TerrainPreviewScene).toHaveBeenCalled();
-  expect(button("Rotate left").props.disabled).toBe(true);
+  expect(button("Widok").props.disabled).toBe(true);
 });
 
 it("retries without clearing model caches when there is no complete terrain selection", async () => {

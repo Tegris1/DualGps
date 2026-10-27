@@ -16,7 +16,7 @@ The mobile client for [Dual GPS](../README.md), built with TypeScript, React Nat
 ## Requirements
 
 - Node.js 20.19.x or newer compatible with Expo SDK 54, plus npm. See the [SDK compatibility table](https://docs.expo.dev/versions/v54.0.0/).
-- Android Studio, Android SDK tools, and the JDK required by the Android build toolchain. See [Expo's local build guide](https://docs.expo.dev/guides/local-app-development/).
+- Android Studio, Android SDK tools, and JDK 17. React Native 0.81 recommends JDK 17; see its [environment setup guide](https://reactnative.dev/docs/0.81/set-up-your-environment) and [Expo's local build guide](https://docs.expo.dev/guides/local-app-development/).
 - A running [Dual GPS backend](../DualGpsBackend/README.md) for authentication. Both the Spring Boot API and PostgreSQL database can run entirely in Docker; a local backend Java or Maven installation is not required for that setup.
 - For this app's intended RTK setup: two GNSS receivers, each supporting at least L1 and L2 frequencies, are required to establish a stable RTK fix.
 - For the receiver workflow: an Android phone, Bluetooth Classic connectivity to the receiver, and NTRIP service credentials.
@@ -40,6 +40,26 @@ EXPO_PUBLIC_API_URL_DEVICE=http://192.168.1.100:8080
 ```
 
 The app selects the emulator variable on an Android emulator and the device variable elsewhere. Replace the device address with your backend computer's LAN IP.
+
+If sign-in shows `Authentication is not configured.`, the selected API URL is missing or empty. Create `.env` from `.env.example` and fill in the URL for your target. The example includes the Android emulator URL for a backend running on this computer at port 8080. Fully reload the app after changing `.env` so Expo includes the new values in the JavaScript bundle; see [Expo environment variables](https://docs.expo.dev/guides/environment-variables/). Authentication also requires the backend to be running.
+
+Select JDK 17 before running the Android build. For a Windows installation at `C:\Program Files\Java\jdk-17`, run in the same PowerShell terminal:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+.\android\gradlew.bat --version
+```
+
+Confirm that the launcher and daemon JVMs use Java 17. These variables apply to the current terminal; set `JAVA_HOME` in your Windows user environment and open a new terminal to make that selection persistent. The project's Gradle 8.14.3 does not support running on Java 25 or 26; a `com.facebook.react.settings` resolution failure showing `26.0.2.1` can result from that mismatch. See the [Gradle Java compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html).
+
+Gradle also needs the Android SDK location. Set `ANDROID_HOME` to the SDK directory shown in Android Studio's SDK Manager, or create an untracked `android/local.properties` file with a machine-specific path such as:
+
+```properties
+sdk.dir=C:/Users/Iwona/AppData/Local/Android/Sdk
+```
+
+Use your own Windows account path. `android/local.properties` is ignored by Git and must be recreated if the generated Android directory is removed. See [Android build properties](https://developer.android.com/build#properties-files).
 
 Connect your Android phone with USB debugging enabled, then run:
 
@@ -65,23 +85,37 @@ The debug console retains the latest 200 entries. Disconnecting Bluetooth also s
 ## Code organization
 
 ```text
-app/                 Expo Router screens, layouts, and route guards
-api/                 Authentication HTTP client and typed transport errors
-components/settings/ Bluetooth, caster settings, and diagnostics UI
-hooks/               Connection orchestration and persisted settings
-features/auth/       Online form validation, error messages, and offline session
-features/gps/        Receiver actions, setup view, and status/feedback presentation
-lib/auth-context.tsx Shared authentication state
-lib/gps-context.tsx  Shared receiver and correction state
-lib/gps/             NMEA, NTRIP, RTCM, and receiver configuration logic
-utils/               Android permission helper
+app/                        Expo Router routes, layouts, and navigation guards
+features/
+  auth/
+    api/                    Authentication HTTP client and typed transport errors
+    components/             Authentication form UI
+    hooks/                  Form workflow
+    auth-context.tsx        Persistent online session
+    offline-session-context.tsx  In-memory presentation session
+    errors.ts               Authentication failure contracts
+  gps/
+    components/             Receiver, GNSS, and settings views
+    hooks/                  Bluetooth, diagnostics, corrections, and settings state
+    presentation/           Status summaries, eligibility, and feedback mapping
+    services/               NTRIP session readiness and retry lifecycle
+    gps-context.tsx         One shared receiver/correction session
+    eupos-settings.ts       Caster form conversion and saved-value parsing
+    bluetooth-permissions.ts  Android permission adapter
+    types.ts                Receiver/session and settings models
+  terrain/                  Project selection, preview controls, and rendering
+components/ui/              Shared form controls, styles, and platform icons
+components/                 App-wide themed and navigation components
+hooks/                      Theme and color-scheme hooks
+lib/gps/                    NMEA, NTRIP, RTCM, and receiver protocol/transport code
+lib/secure-storage.ts       Shared native/browser storage adapter
 ```
 
-[useBluetoothSerial](hooks/use-bluetooth-serial.ts) composes receiver, corrections, and diagnostics once inside `GpsProvider`, preserving the controller consumed by the routes. Screens share that provider session; mounting or unmounting a consumer does not create or stop a native connection.
+[useBluetoothSerial](features/gps/hooks/use-bluetooth-serial.ts) composes receiver, corrections, and diagnostics once inside [GpsProvider](features/gps/gps-context.tsx), preserving the controller consumed by the routes. Screens share that provider session; mounting or unmounting a consumer does not create or stop a native connection.
 
 - [useBluetoothReceiver](features/gps/hooks/use-bluetooth-receiver.ts) owns paired-device discovery, permissions, receiver configuration, and native subscriptions. Connection/session identities reject cancelled attempts, late native results, and stale listeners.
 - [useReceiverDiagnostics](features/gps/hooks/use-receiver-diagnostics.ts) owns NMEA readings and the last 200 console entries. It returns usable GGA sentences for corrections, and resets readings separately from console history.
-- [useNtripSession](features/gps/hooks/use-ntrip-session.ts) binds the React lifecycle and settings to [NtripSession](lib/gps/ntrip-session.ts). The session caches early GGA until configuration finishes, manages retries from 2 seconds up to 30 seconds, and invalidates old callbacks before stopping. Settings updates apply to subsequent starts/retries without reconnecting Bluetooth.
+- [useNtripSession](features/gps/hooks/use-ntrip-session.ts) binds the React lifecycle and settings to [NtripSession](features/gps/services/ntrip-session.ts). The session caches early GGA until configuration finishes, manages retries from 2 seconds up to 30 seconds, and invalidates old callbacks before stopping. Settings updates apply to subsequent starts/retries without reconnecting Bluetooth.
 - [NtripConnection](lib/gps/ntrip-connection.ts) retains socket timeouts, GGA writes, serialized correction forwarding, backpressure, and RTCM diagnostics. Protocol parsing and framing remain under [lib/gps](lib/gps).
 
 The online authentication route [app/auth.tsx](app/auth.tsx) connects [useAuthForm](features/auth/hooks/use-auth-form.ts) to the prop-driven [AuthForm](features/auth/components/auth-form.tsx). Validation lives in [features/auth/validation.ts](features/auth/validation.ts); the hook owns form state, submission, and errors. API calls and session storage stay in the authentication provider, and the root layout's route guard handles successful sign-in redirects.
@@ -90,13 +124,15 @@ Authentication operations return `AuthFailure | null`, preserving API error kind
 
 Settings views receive explicit values and callbacks. [useReceiverControls](features/gps/hooks/use-receiver-controls.ts) connects the provider to the routes and coordinates selection, connection, and disconnection actions. [Receiver presentation](features/gps/presentation/receiver-state.ts) supplies shared eligibility rules, while [NTRIP presentation](features/gps/presentation/ntrip-status.ts) supplies consistent summaries, severity, and diagnostics for setup, Bluetooth settings, and debug. Connecting requires a profile and selected device; profile/device selection is locked during a pending connection. Setup retains its select-and-connect behavior, and settings retains separate selection and Connect actions. The EUPOS hook sanitizes port edits; password visibility and console scrolling remain local UI state.
 
+Feature code owns its API, context, hooks, and views. Routes connect providers/navigation to those views. [Shared form controls](components/ui/form-controls.tsx) keep their own styles and have no auth/GPS dependencies; feature layout styles stay beside the settings views. Protocol modules remain independent of feature contexts and UI. Imports and existing test mocks point directly at the feature paths, with no compatibility modules at the old locations.
+
 ## Terrain rendering preview
 
 The terrain preview displays the bundled `assets/terrain/Original.glb` and `assets/terrain/Target.glb` together. It provides layer switches, camera rotation, zoom, a top view, and reset. The current surface is brown; the target is a cyan wireframe overlay that stays visible through the current surface. Both models retain their exported placement and rotation, and the camera fits their combined bounds.
 
 The `current-terrain` and `target-terrain` routes share `TerrainSelectionScreen` and `TerrainOptionCard` under `features/terrain/components`. The routes own terrain filtering and navigation; the shared components render the layout, selection state, and continue action. Terrain state and rendering also live under `features/terrain`, while the local sign-in session lives under `features/auth`.
 
-Sign-in, selection, and preview reuse `TerrainHeader` and `TerrainButton`. The preview uses `TerrainLayerRow` for each surface's visibility switch and Change action. Shared colors and typography are defined in `features/terrain/theme.ts`, including the surface colors used by the renderer and layer indicators.
+Sign-in and the initial terrain selection reuse `TerrainHeader` and `TerrainButton`. Both online and offline previews use the shared dashboard under `features/dashboard`, including camera controls, layer visibility, the sample cross-section, and the responsive layout. Shared terrain colors and typography are defined in `features/terrain/theme.ts`, including the surface colors used by the renderer and layer indicators.
 
 From this directory, run in PowerShell:
 
@@ -125,15 +161,15 @@ Offline mode opens a local sign-in screen and does not mount the backend authent
 
 Successful sign-in opens **Choose current terrain**. Select `Original.glb`, continue to **Choose target terrain**, select `Target.glb`, then **Open preview**. Both choices are required, role-validated, and must reference different files. Each step stays disabled until its required selection is valid. The renderer loads both selected catalog entries.
 
-Use **Change** beside either filename in the preview to return to its selection screen. Choices are retained while navigating between screens and cleared on sign-out or app restart. Choosing a different current terrain clears the target choice.
+The preview opens the dashboard with **TRYB OFFLINE · DANE PRZYKŁADOWE** displayed in its header. Both GNSS indicators, all IMUs, inclination, and the bucket cross-section use sample data; the selected terrain models render in the 3D panel. Use **Widok** for camera controls, **Reset** to restore the camera, and **Warstwy** for layer visibility and terrain selection. Changing surfaces uses an in-place picker. Choices are retained while navigating between screens and cleared on sign-out or app restart. Choosing a different current terrain clears the target choice without ejecting the dashboard; select a new target in the picker.
 
 The preview includes a procedural yellow excavator in a fixed pose. A downward raycast places its tracks on the current surface; its presentation proportions scale to the terrain footprint and are not surveyed machine dimensions. A bucket cutting-edge reference is available for the later cross-section. The camera frames the terrain and machine together. Terrain visibility switches leave the machine visible.
 
-The preview route connects project/session state and navigation to [useTerrainPreview](features/terrain/hooks/use-terrain-preview.ts) and the prop-driven [TerrainPreviewView](features/terrain/components/terrain-preview-view.tsx). The hook owns camera actions, independent layer visibility, and loading readiness for the selected model pair. Its loading callback stays stable during camera/visibility changes so the scene's disposal effect only follows the model lifecycle. The route's error boundary clears the selected models' cache before retrying and passes display text and callbacks to [TerrainPreviewErrorView](features/terrain/components/terrain-preview-error-view.tsx). Three.js loading, camera synchronization, and resource disposal remain in the scene.
+The offline preview route supplies demo readings and local session sign-out to [DashboardScreen](features/dashboard/containers/dashboard-screen.tsx). The online Home route supplies readings from the existing GPS provider and callbacks for connection setup and settings. [Dashboard presentation](features/dashboard/presentation/dashboard-readings.ts) prepares display values without accessing either provider. The shared dashboard composes [useTerrainPreview](features/terrain/hooks/use-terrain-preview.ts), whose stable loading callback keeps camera and visibility changes from disposing the scene. Preview failures are contained inside the terrain panel, with cache clearing before retry; the route-level error boundary remains a fallback for other rendering errors. Three.js loading, camera synchronization, and resource disposal remain in the scene.
 
-`getBucketCrossSections` calculates independent current/target triangle-intersection segments in a vertical plane through the bucket edge, aligned with the machine's digging direction. Each point contains signed horizontal distance from the bucket and world elevation in source-model units. Imported transforms and gaps are preserved; no intersection returns an empty profile. Point tangencies and coplanar triangles are excluded, and shared-edge duplicates are removed. This calculation is ready for the next increment's 2D panel; the preview does not display it yet.
+`getBucketCrossSections` calculates independent current/target triangle-intersection segments in a vertical plane through the bucket edge, aligned with the machine's digging direction. Each point contains signed horizontal distance from the bucket and world elevation in source-model units. Imported transforms and gaps are preserved; no intersection returns an empty profile. Point tangencies and coplanar triangles are excluded, and shared-edge duplicates are removed. The dashboard's cross-section currently uses separate sample data. Connecting this geometry to measured bucket position still requires confirming alignment and model units.
 
-**Sign out** returns to login and removes access to selection and preview, including through the Back button or a direct link. Excavator controls and cross-sections are later increments. Set `EXPO_PUBLIC_OFFLINE_MODE` to `false` and restart Metro to return to the existing authentication/hardware workflow.
+**Menu > Wyloguj** returns to login and removes access to selection and preview, including through the Back button or a direct link. Offline mode omits connection setup and settings from the dashboard menu. Set `EXPO_PUBLIC_OFFLINE_MODE` to `false` and restart Metro to return to the authentication/hardware workflow.
 
 Manual preview check: confirm both models load, switch each layer off/on, rotate in both directions, zoom, select top view, and reset. The models must remain aligned during camera changes. A loading failure displays an error with a retry action. This preview preserves source transforms; surveyed alignment and units still need confirmation against the source project.
 

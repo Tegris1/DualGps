@@ -7,8 +7,8 @@ import { dashboardColors, dashboardStyles } from "../styles";
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onOpenConnectionSetup: () => void;
-  onOpenSettings: () => void;
+  onOpenConnectionSetup?: () => void;
+  onOpenSettings?: () => void;
   onSignOut: () => void;
 };
 
@@ -31,7 +31,7 @@ export function DashboardMenu({ visible, onClose, onOpenConnectionSetup, onOpenS
                 <MaterialIcons name="close" size={26} color="#ffffff" />
               </Pressable>
             </View>
-            {actions.map((action) => (
+            {actions.filter((action) => action.onPress !== undefined).map((action) => (
               <Pressable key={action.title} accessibilityRole="button" onPress={action.onPress} style={({ pressed }) => [styles.action, pressed && dashboardStyles.pressed]}>
                 <MaterialIcons name={action.icon} size={28} color={dashboardColors.yellow} />
                 <View style={styles.copy}>

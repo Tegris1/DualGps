@@ -1,13 +1,14 @@
 import { useState } from "react";
 
 export type DashboardMenuActions = {
-  onOpenConnectionSetup: () => void;
-  onOpenSettings: () => void;
+  onOpenConnectionSetup?: () => void;
+  onOpenSettings?: () => void;
   onSignOut: () => void;
 };
 
 export function useDashboardMenu(actions: DashboardMenuActions) {
   const [visible, setVisible] = useState(false);
+  const { onOpenConnectionSetup, onOpenSettings } = actions;
 
   function select(action: () => void) {
     setVisible(false);
@@ -18,8 +19,8 @@ export function useDashboardMenu(actions: DashboardMenuActions) {
     visible,
     onOpen: () => setVisible(true),
     onClose: () => setVisible(false),
-    onOpenConnectionSetup: () => select(actions.onOpenConnectionSetup),
-    onOpenSettings: () => select(actions.onOpenSettings),
+    onOpenConnectionSetup: onOpenConnectionSetup ? () => select(onOpenConnectionSetup) : undefined,
+    onOpenSettings: onOpenSettings ? () => select(onOpenSettings) : undefined,
     onSignOut: () => select(actions.onSignOut),
   };
 }

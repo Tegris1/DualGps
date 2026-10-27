@@ -1,4 +1,8 @@
-import type { DashboardReadings } from "./types";
+import type { DashboardReadings, DashboardSensor } from "./types";
+
+export const dashboardDemoPrimaryGnss: DashboardSensor = {
+  id: "gps-1", label: "GPS 1", status: "rtk-fix",
+};
 
 // Presentation fixtures only; these values do not describe connected hardware.
 export const dashboardDemoData: DashboardReadings = {

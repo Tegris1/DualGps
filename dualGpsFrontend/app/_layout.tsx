@@ -12,8 +12,8 @@ import { useEffect } from "react";
 
 const OFFLINE_MODE = process.env.EXPO_PUBLIC_OFFLINE_MODE === "true";
 
-function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false, hasTargetTerrain = false }:
-  { offlineSignedIn?: boolean; hasCurrentTerrain?: boolean; hasTargetTerrain?: boolean }) {
+function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false }:
+  { offlineSignedIn?: boolean; hasCurrentTerrain?: boolean }) {
   return (
     <Stack>
       <Stack.Protected guard={OFFLINE_MODE && !offlineSignedIn}>
@@ -25,7 +25,7 @@ function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false, hasT
       <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn && hasCurrentTerrain}>
         <Stack.Screen name="target-terrain" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn && hasCurrentTerrain && hasTargetTerrain}>
+      <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn}>
         <Stack.Screen name="terrain-preview" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!OFFLINE_MODE}>
@@ -84,8 +84,8 @@ function OfflineApp() {
 }
 
 function OfflineNavigation({ signedIn }: { signedIn: boolean }) {
-  const { currentTerrain, targetTerrain } = useTerrainProject();
-  return <AppNavigator offlineSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} hasTargetTerrain={!!targetTerrain} />;
+  const { currentTerrain } = useTerrainProject();
+  return <AppNavigator offlineSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} />;
 }
 
 function GpsApp() {

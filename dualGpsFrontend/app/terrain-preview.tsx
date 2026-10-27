@@ -1,9 +1,9 @@
-import { type ErrorBoundaryProps, useRouter } from "expo-router";
+import { type ErrorBoundaryProps } from "expo-router";
 
 import { useOfflineSession } from "@/features/auth/offline-session-context";
 import { TerrainPreviewErrorView } from "@/features/terrain/components/terrain-preview-error-view";
-import { TerrainPreviewView } from "@/features/terrain/components/terrain-preview-view";
-import { useTerrainPreview } from "@/features/terrain/hooks/use-terrain-preview";
+import { DashboardScreen } from "@/features/dashboard/containers/dashboard-screen";
+import { getOfflineDashboardPresentation } from "@/features/dashboard/presentation/dashboard-readings";
 import { useTerrainProject } from "@/features/terrain/project-context";
 import { clearTerrainPreviewCache } from "@/features/terrain/terrain-preview-scene";
 
@@ -23,20 +23,5 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function TerrainPreview() {
   const { signOut } = useOfflineSession();
-  const { currentTerrain, targetTerrain } = useTerrainProject();
-  const router = useRouter();
-  const preview = useTerrainPreview(currentTerrain?.id ?? null, targetTerrain?.id ?? null);
-
-  if (!currentTerrain || !targetTerrain) return null;
-
-  return (
-    <TerrainPreviewView
-      {...preview}
-      currentTerrain={currentTerrain}
-      targetTerrain={targetTerrain}
-      onSignOut={signOut}
-      onChangeCurrentTerrain={() => router.navigate("/current-terrain")}
-      onChangeTargetTerrain={() => router.navigate("/target-terrain")}
-    />
-  );
+  return <DashboardScreen data={getOfflineDashboardPresentation()} onSignOut={signOut} />;
 }

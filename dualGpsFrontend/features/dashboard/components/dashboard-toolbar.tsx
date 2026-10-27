@@ -21,7 +21,7 @@ export function DashboardToolbar({ cameraEnabled, cameraControlsVisible, onToggl
     { label: "Widok", icon: "open-with", disabled: !cameraEnabled, hint: cameraEnabled ? "Kamera 3D" : "Wczytaj teren", expanded: cameraControlsVisible, onPress: onToggleCameraControls },
     { label: "Warstwy", icon: "layers", disabled: !layersEnabled, hint: "Powierzchnie 3D", expanded: layerControlsVisible, onPress: onToggleLayerControls },
     { label: "Reset", icon: "restart-alt", disabled: !cameraEnabled, hint: cameraEnabled ? "Reset kamery" : "Wczytaj teren", onPress: onResetView },
-    { label: "Menu", icon: "menu", disabled: false, hint: "Połączenie i konto", expanded: menuVisible, onPress: onOpenMenu },
+    { label: "Menu", icon: "menu", disabled: false, hint: "Nawigacja i konto", expanded: menuVisible, onPress: onOpenMenu },
   ] as const;
 
   return (

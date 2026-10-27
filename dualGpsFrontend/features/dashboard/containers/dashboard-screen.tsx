@@ -3,14 +3,13 @@ import { DashboardLayerControls } from "../components/dashboard-layer-controls";
 import { DashboardMenu } from "../components/dashboard-menu";
 import { DashboardToolbar } from "../components/dashboard-toolbar";
 import { DashboardView } from "../components/dashboard-view";
-import { useDashboard } from "../hooks/use-dashboard";
 import { useDashboardLayout } from "../hooks/use-dashboard-layout";
 import { useDashboardTerrain } from "../hooks/use-dashboard-terrain";
 import { useDashboardMenu, type DashboardMenuActions } from "../hooks/use-dashboard-menu";
+import type { DashboardViewModel } from "../types";
 import { DashboardTerrainPanel } from "./dashboard-terrain-panel";
 
-export function DashboardScreen(actions: DashboardMenuActions) {
-  const data = useDashboard();
+export function DashboardScreen({ data, ...actions }: DashboardMenuActions & { data: DashboardViewModel }) {
   const layout = useDashboardLayout();
   const terrain = useDashboardTerrain();
   const camera = terrain.cameraControls;
