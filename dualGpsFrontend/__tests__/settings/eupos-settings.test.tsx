@@ -2,9 +2,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@j
 import * as SecureStore from "expo-secure-store";
 import { act } from "react";
 
-import { EuposSettings } from "../../components/settings/eupos-settings";
-import { InfoBanner } from "../../components/settings/settings-controls";
-import { useEuposSettings } from "../../hooks/use-eupos-settings";
+import { EuposSettings } from "../../features/gps/components/settings/eupos-settings";
+import { InfoBanner } from "../../components/ui/form-controls";
+import { useEuposSettings } from "../../features/gps/hooks/use-eupos-settings";
 import { getEuposSaveFeedback } from "../../features/gps/presentation/eupos-feedback";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");

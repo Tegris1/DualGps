@@ -1,4 +1,4 @@
-import type { AuthFailure } from "@/lib/auth-errors";
+import type { AuthFailure } from "@/features/auth/errors";
 
 import type { AuthValidationIssue } from "./validation";
 

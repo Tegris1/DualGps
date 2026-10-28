@@ -1,4 +1,4 @@
-import { AuthApiError } from "@/api/auth-errors";
+import { AuthApiError } from "@/features/auth/api/auth-errors";
 
 export type AuthFailure =
   | { kind: "api"; error: AuthApiError }

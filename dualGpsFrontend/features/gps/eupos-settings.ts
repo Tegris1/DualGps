@@ -1,5 +1,5 @@
-import { validateNtripSettings, type NtripSettings } from "./ntrip-protocol";
-import { NtripSettingsError } from "./settings-errors";
+import { validateNtripSettings, type NtripSettings } from "@/lib/gps/ntrip-protocol";
+import { NtripSettingsError } from "@/lib/gps/settings-errors";
 import type { EuposSettings } from "./types";
 
 export type EuposSaveResult =

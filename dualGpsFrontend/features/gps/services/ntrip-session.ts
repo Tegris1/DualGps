@@ -1,9 +1,9 @@
 import type { BluetoothDevice } from "react-native-bluetooth-classic";
 
-import { toNtripSettings } from "./eupos-settings";
-import { NtripConnection, type NtripConnectionStatus } from "./ntrip-connection";
-import type { NtripSettings } from "./ntrip-protocol";
-import type { EuposSettings, ReceiverReleaseReason } from "./types";
+import { toNtripSettings } from "../eupos-settings";
+import { NtripConnection, type NtripConnectionStatus } from "@/lib/gps/ntrip-connection";
+import type { NtripSettings } from "@/lib/gps/ntrip-protocol";
+import type { EuposSettings, ReceiverReleaseReason } from "../types";
 
 export const INITIAL_NTRIP_STATUS: NtripConnectionStatus = {
   state: "idle",

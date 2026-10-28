@@ -1,4 +1,4 @@
-import { useGps } from "@/lib/gps-context";
+import { useGps } from "@/features/gps/gps-context";
 import type { ReceiverModel } from "@/lib/gps/receiver-profiles";
 
 import { getNtripPresentation } from "../presentation/ntrip-status";

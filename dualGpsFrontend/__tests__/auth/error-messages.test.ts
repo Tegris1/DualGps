@@ -1,6 +1,6 @@
 import { expect, it } from "@jest/globals";
 
-import { AuthApiError, type AuthApiErrorKind } from "../../api/auth-errors";
+import { AuthApiError, type AuthApiErrorKind } from "../../features/auth/api/auth-errors";
 import { getAuthErrorMessage } from "../../features/auth/error-messages";
 import type { AuthValidationIssue } from "../../features/auth/validation";
 

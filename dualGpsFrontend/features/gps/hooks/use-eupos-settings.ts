@@ -5,9 +5,9 @@ import {
   parseStoredEuposSettings,
   toNtripSettings,
   type EuposSaveResult,
-} from "@/lib/gps/eupos-settings";
+} from "@/features/gps/eupos-settings";
 import { NtripSettingsError } from "@/lib/gps/settings-errors";
-import type { EuposSettings } from "@/lib/gps/types";
+import type { EuposSettings } from "@/features/gps/types";
 import { createSecureStorage } from "@/lib/secure-storage";
 
 const STORAGE_KEY = "dualgps.asg-eupos-settings";

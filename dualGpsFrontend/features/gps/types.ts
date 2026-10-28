@@ -1,4 +1,4 @@
-import type { NtripSettings } from "./ntrip-protocol";
+import type { NtripSettings } from "@/lib/gps/ntrip-protocol";
 
 export type EuposSettings = Omit<NtripSettings, "port"> & { port: string };
 

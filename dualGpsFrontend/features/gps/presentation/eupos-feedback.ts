@@ -1,4 +1,4 @@
-import type { EuposSaveResult } from "@/lib/gps/eupos-settings";
+import type { EuposSaveResult } from "@/features/gps/eupos-settings";
 import type { NtripSettingsErrorCode } from "@/lib/gps/settings-errors";
 
 export type EuposSaveFeedback = { status: "success" | "error"; message: string };

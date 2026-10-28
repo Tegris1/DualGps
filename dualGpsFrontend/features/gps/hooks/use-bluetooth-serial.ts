@@ -4,7 +4,7 @@ import type { BluetoothDevice } from "react-native-bluetooth-classic";
 import { useBluetoothReceiver } from "@/features/gps/hooks/use-bluetooth-receiver";
 import { useNtripSession } from "@/features/gps/hooks/use-ntrip-session";
 import { useReceiverDiagnostics } from "@/features/gps/hooks/use-receiver-diagnostics";
-import type { EuposSettings, ReceiverReleaseReason } from "@/lib/gps/types";
+import type { EuposSettings, ReceiverReleaseReason } from "@/features/gps/types";
 
 // The provider creates this composition once. Each part owns its resources;
 // screens continue to consume the same controller through useGps.

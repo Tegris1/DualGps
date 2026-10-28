@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 
-import { useAuth } from "@/lib/auth-context";
-import { toAuthFailure } from "@/lib/auth-errors";
+import { useAuth } from "@/features/auth/auth-context";
+import { toAuthFailure } from "@/features/auth/errors";
 
 import { getAuthErrorMessage, type AuthFormFailure } from "../error-messages";
 import { validateAuthForm } from "../validation";

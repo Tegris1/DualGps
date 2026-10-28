@@ -3,8 +3,8 @@ import { NativeModules } from "react-native";
 import BluetoothClassic, { type BluetoothDevice, type BluetoothEventSubscription } from "react-native-bluetooth-classic";
 
 import { configureTopcon, type ReceiverModel } from "@/lib/gps/receiver-profiles";
-import type { ReceiverReleaseReason } from "@/lib/gps/types";
-import { ensureBluetoothConnectPermission } from "@/utils/bluetoothPermisisons";
+import type { ReceiverReleaseReason } from "@/features/gps/types";
+import { ensureBluetoothConnectPermission } from "@/features/gps/bluetooth-permissions";
 
 const BLUETOOTH_MODULE_UNAVAILABLE = "Bluetooth Classic is unavailable on this device.";
 const hasBluetoothNativeModule = NativeModules.RNBluetoothClassic != null;

@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@j
 import { act } from "react";
 import BluetoothClassic, { type BluetoothDevice } from "react-native-bluetooth-classic";
 
-import { useBluetoothSerial } from "../../hooks/use-bluetooth-serial";
-import { GpsProvider, useGps } from "../../lib/gps-context";
-import type { EuposSettings } from "../../lib/gps/types";
-import { DEFAULT_EUPOS_SETTINGS } from "../../lib/gps/eupos-settings";
+import { useBluetoothSerial } from "../../features/gps/hooks/use-bluetooth-serial";
+import { GpsProvider, useGps } from "../../features/gps/gps-context";
+import type { EuposSettings } from "../../features/gps/types";
+import { DEFAULT_EUPOS_SETTINGS } from "../../features/gps/eupos-settings";
 import { NtripConnection, type NtripConnectionCallbacks, type NtripState } from "../../lib/gps/ntrip-connection";
 import { configureTopcon } from "../../lib/gps/receiver-profiles";
-import { ensureBluetoothConnectPermission } from "../../utils/bluetoothPermisisons";
+import { ensureBluetoothConnectPermission } from "../../features/gps/bluetooth-permissions";
 import { gga, gsa } from "../fixtures/nmea";
 
 jest.mock("react-native", () => ({ NativeModules: { RNBluetoothClassic: {} } }));
@@ -21,8 +21,8 @@ jest.mock("react-native-bluetooth-classic", () => ({
 }));
 jest.mock("../../lib/gps/ntrip-connection", () => ({ NtripConnection: jest.fn() }));
 jest.mock("../../lib/gps/receiver-profiles", () => ({ configureTopcon: jest.fn() }));
-jest.mock("../../utils/bluetoothPermisisons", () => ({ ensureBluetoothConnectPermission: jest.fn() }));
-jest.mock("../../hooks/use-eupos-settings", () => ({ useEuposSettings: () => ({ settings: mockProviderSettings }) }));
+jest.mock("../../features/gps/bluetooth-permissions", () => ({ ensureBluetoothConnectPermission: jest.fn() }));
+jest.mock("../../features/gps/hooks/use-eupos-settings", () => ({ useEuposSettings: () => ({ settings: mockProviderSettings }) }));
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create> | null;

@@ -3,11 +3,11 @@ import { createContext, type ReactNode, useContext } from "react";
 import {
   useBluetoothSerial,
   type BluetoothSerialController,
-} from "@/hooks/use-bluetooth-serial";
+} from "@/features/gps/hooks/use-bluetooth-serial";
 import {
   useEuposSettings,
   type EuposSettingsController,
-} from "@/hooks/use-eupos-settings";
+} from "@/features/gps/hooks/use-eupos-settings";
 
 type GpsContextValue = {
   bluetooth: BluetoothSerialController;

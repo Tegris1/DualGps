@@ -1,5 +1,5 @@
-import { authApi } from "@/api/authApi";
-import { toAuthFailure, type AuthFailure } from "@/lib/auth-errors";
+import { authApi } from "@/features/auth/api/auth-api";
+import { toAuthFailure, type AuthFailure } from "@/features/auth/errors";
 import { createSecureStorage } from "@/lib/secure-storage";
 import {
   createContext,
