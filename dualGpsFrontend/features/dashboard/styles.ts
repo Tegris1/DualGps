@@ -1,21 +1,14 @@
 import { StyleSheet } from "react-native";
+import { controlPanelColors } from "@/constants/control-panel-colors";
 
-export const dashboardColors = {
-  background: "#1d303b",
-  toolbar: "#2b424f",
-  ink: "#12364b",
-  muted: "#607684",
-  yellow: "#edba3b",
-  red: "#b83c2b",
-  green: "#4c8851",
-};
+export const dashboardColors = controlPanelColors;
 
 export const dashboardStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: dashboardColors.background },
   content: { flexGrow: 1, padding: 12, gap: 3 },
   header: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, paddingHorizontal: 12, paddingVertical: 8 },
   brand: { color: "#ffffff", fontSize: 13, fontWeight: "800", letterSpacing: 1 },
-  demoBadge: { color: "#d4e1e8", fontSize: 10, fontWeight: "600", letterSpacing: 0.5 },
+  modeBadge: { color: "#d4e1e8", fontSize: 10, fontWeight: "600", letterSpacing: 0.5 },
   pressed: { opacity: 0.65 },
   summary: { gap: 3 },
   row: { flexDirection: "row" },
@@ -40,7 +33,6 @@ export const dashboardStyles = StyleSheet.create({
   sensorGrid: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
   sensorCell: { flexBasis: "47%", flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 5, padding: 5, backgroundColor: "#ffffff" },
   sensorDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: dashboardColors.green },
-  demoSensorDot: { backgroundColor: "#99731c" },
   sensorLabel: { flexShrink: 1, fontSize: 11, color: dashboardColors.ink },
   gnssRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-around", gap: 6 },
   gnssSensor: { flexBasis: "47%", flexGrow: 1, gap: 3 },

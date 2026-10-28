@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -10,25 +11,30 @@ import {
   SettingsTabs,
   styles,
   type SettingsSection,
-} from "@/components/settings";
-import { useGps } from "@/lib/gps-context";
+} from "@/features/gps/components/settings";
+import { useGps } from "@/features/gps/gps-context";
 import { getEuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback";
 import { useReceiverControls } from "@/features/gps/hooks/use-receiver-controls";
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  const { section } = useLocalSearchParams<{ section?: string }>();
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("bluetooth");
+  useFocusEffect(useCallback(() => {
+    setActiveSection(section === "debug" || section === "eupos" ? section : "bluetooth");
+  }, [section]));
   const { eupos } = useGps();
   const receiver = useReceiverControls();
   const { connection } = receiver;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <SettingsHeader isGpsOnline={connection.isConnected} />
+        <SettingsHeader isGpsOnline={connection.isConnected} onReturn={() => router.navigate("/(tabs)")} />
         <SettingsTabs
           activeTab={activeSection}
           onChange={setActiveSection}
@@ -76,6 +82,7 @@ export default function SettingsScreen() {
             ntripDetails={receiver.ntrip.details}
             consoleEntries={receiver.consoleEntries}
             onConnectionAction={receiver.onConnectionAction}
+            onCancelConnection={connection.canDisconnect && !connection.isConnected ? receiver.onDisconnect : undefined}
             onClearConsole={receiver.onClearConsole}
             onSelectDevice={() => setActiveSection("bluetooth")}
           />
