@@ -10,6 +10,8 @@ import { DEFAULT_VIEW } from "../../features/terrain/preview-models";
 import { clearTerrainPreviewCache, TerrainPreviewScene } from "../../features/terrain/terrain-preview-scene";
 import { TerrainPreviewErrorView } from "../../features/terrain/components/terrain-preview-error-view";
 import { SensorStatusCard } from "../../features/dashboard/components/sensor-status-card";
+import { DashboardTerrainPanel } from "../../features/dashboard/containers/dashboard-terrain-panel";
+import { useDashboardTerrain } from "../../features/dashboard/hooks/use-dashboard-terrain";
 
 jest.mock("../../assets/terrain/Original.glb", () => 11);
 jest.mock("../../assets/terrain/Target.glb", () => 12);
@@ -98,6 +100,7 @@ async function mountPreview() {
 it("enables preview controls after loading and preserves rotation, zoom, top view, and reset actions", async () => {
   await mountPreview();
   const controls = ["Widok", "Reset"];
+  await act(() => button("Menu").props.onPress());
   for (const label of controls) expect(button(label).props.disabled).toBe(true);
   await act(() => scene().onLoaded());
   const onLoaded = scene().onLoaded;
@@ -114,6 +117,7 @@ it("enables preview controls after loading and preserves rotation, zoom, top vie
   expect(scene().view.zoom).toBeCloseTo(DEFAULT_VIEW.zoom);
   await act(() => button("Z góry").props.onPress());
   expect(scene().view.elevation).toBeGreaterThan(DEFAULT_VIEW.elevation);
+  await act(() => labeledAction("Powrót do menu", "onPress").props.onPress());
   await act(() => button("Reset").props.onPress());
   expect(scene().view).toEqual(DEFAULT_VIEW);
   expect(scene().onLoaded).toBe(onLoaded);
@@ -123,8 +127,9 @@ it("keeps offline layers independent, changes terrain in place, and signs out fr
   await mountPreview();
   const sensors = root.root.findByType(SensorStatusCard).props;
   expect(sensors.gnss).toHaveLength(2);
-  expect(sensors.gnss.every((sensor: { source: string }) => sensor.source === "demo")).toBe(true);
+  expect(sensors.gnss.every((sensor: { source: string }) => sensor.source === "preset")).toBe(true);
   await act(() => scene().onLoaded());
+  await act(() => button("Menu").props.onPress());
   await act(() => button("Warstwy").props.onPress());
   await act(() => labeledAction("Pokaż warstwę: Pomiar", "onValueChange").props.onValueChange(false));
   expect(scene().showCurrent).toBe(false);
@@ -137,6 +142,7 @@ it("keeps offline layers independent, changes terrain in place, and signs out fr
   await act(() => labeledAction("Zmień warstwę: Pomiar", "onPress").props.onPress());
   await act(() => button("Dalej: wybierz projekt").props.onPress());
   await act(() => button("Otwórz podgląd").props.onPress());
+  await act(() => button("Menu").props.onPress());
   await act(() => button("Warstwy").props.onPress());
   await act(() => labeledAction("Zmień warstwę: Projekt", "onPress").props.onPress());
   await act(() => button("Otwórz podgląd").props.onPress());
@@ -181,7 +187,34 @@ it("waits for both selected terrains before mounting the scene", async () => {
   expect(TerrainPreviewScene).not.toHaveBeenCalled();
   await act(() => { project.selectTargetTerrain("target"); });
   expect(TerrainPreviewScene).toHaveBeenCalled();
+  await act(() => button("Menu").props.onPress());
   expect(button("Widok").props.disabled).toBe(true);
+});
+
+it("recreates the canvas after navigation while retaining the selected models and camera", async () => {
+  let terrain!: ReturnType<typeof useDashboardTerrain>;
+  function Preview({ active }: { active: boolean }) {
+    terrain = useDashboardTerrain();
+    return <DashboardTerrainPanel controller={terrain} controls={null} isActive={active} />;
+  }
+  function Harness({ active }: { active: boolean }) {
+    return <TerrainProjectProvider><Preview active={active} /></TerrainProjectProvider>;
+  }
+  await act(() => { root = create(<Harness active />); });
+  await act(() => terrain.selection.onSelect("original"));
+  await act(() => terrain.selection.onNext());
+  await act(() => terrain.selection.onSelect("target"));
+  await act(() => terrain.selection.onNext());
+  await act(() => scene().onLoaded());
+  await act(() => terrain.cameraControls.onRotateLeft());
+  const camera = scene().view;
+  await act(() => root.update(<Harness active={false} />));
+  expect(root.root.findAllByType(TerrainPreviewScene)).toHaveLength(0);
+  await act(() => root.update(<Harness active />));
+  expect(root.root.findAllByType(TerrainPreviewScene)).toHaveLength(1);
+  expect(scene().view).toEqual(camera);
+  expect(scene().currentTerrain.id).toBe("original");
+  expect(scene().targetTerrain.id).toBe("target");
 });
 
 it("retries without clearing model caches when there is no complete terrain selection", async () => {

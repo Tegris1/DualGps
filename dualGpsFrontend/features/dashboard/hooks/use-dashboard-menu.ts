@@ -6,9 +6,16 @@ export type DashboardMenuActions = {
   onSignOut: () => void;
 };
 
-export function useDashboardMenu(actions: DashboardMenuActions) {
+type ViewActions = {
+  onOpenView?: () => void;
+  onOpenLayers?: () => void;
+  onResetView?: () => void;
+};
+
+export function useDashboardMenu(actions: DashboardMenuActions & ViewActions) {
   const [visible, setVisible] = useState(false);
   const { onOpenConnectionSetup, onOpenSettings } = actions;
+  const { onOpenView, onOpenLayers, onResetView } = actions;
 
   function select(action: () => void) {
     setVisible(false);
@@ -19,6 +26,9 @@ export function useDashboardMenu(actions: DashboardMenuActions) {
     visible,
     onOpen: () => setVisible(true),
     onClose: () => setVisible(false),
+    onOpenView: onOpenView ? () => select(onOpenView) : undefined,
+    onOpenLayers: onOpenLayers ? () => select(onOpenLayers) : undefined,
+    onResetView: onResetView ? () => select(onResetView) : undefined,
     onOpenConnectionSetup: onOpenConnectionSetup ? () => select(onOpenConnectionSetup) : undefined,
     onOpenSettings: onOpenSettings ? () => select(onOpenSettings) : undefined,
     onSignOut: () => select(actions.onSignOut),

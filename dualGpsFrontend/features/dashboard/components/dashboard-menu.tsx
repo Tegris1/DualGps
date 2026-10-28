@@ -10,10 +10,18 @@ type Props = {
   onOpenConnectionSetup?: () => void;
   onOpenSettings?: () => void;
   onSignOut: () => void;
+  onOpenView?: () => void;
+  onOpenLayers?: () => void;
+  onResetView?: () => void;
+  cameraEnabled: boolean;
+  layersEnabled: boolean;
 };
 
-export function DashboardMenu({ visible, onClose, onOpenConnectionSetup, onOpenSettings, onSignOut }: Props) {
+export function DashboardMenu({ visible, onClose, onOpenConnectionSetup, onOpenSettings, onSignOut, onOpenView, onOpenLayers, onResetView, cameraEnabled, layersEnabled }: Props) {
   const actions = [
+    { title: "Widok", description: cameraEnabled ? "Obrót, przybliżenie i widok z góry" : "Wybierz i wczytaj teren", icon: "open-with", onPress: onOpenView, disabled: !cameraEnabled },
+    { title: "Warstwy", description: "Widoczność i wybór powierzchni terenu", icon: "layers", onPress: onOpenLayers, disabled: !layersEnabled },
+    { title: "Reset", description: cameraEnabled ? "Przywróć ustawienie kamery" : "Wybierz i wczytaj teren", icon: "restart-alt", onPress: onResetView, disabled: !cameraEnabled },
     { title: "Połączenie z odbiornikiem", description: "Wybór odbiornika i połączenie Bluetooth", icon: "bluetooth", onPress: onOpenConnectionSetup },
     { title: "Ustawienia", description: "Bluetooth, ASG-EUPOS i diagnostyka", icon: "settings", onPress: onOpenSettings },
     { title: "Wyloguj", description: "Zakończ bieżącą sesję", icon: "logout", onPress: onSignOut },
@@ -32,7 +40,7 @@ export function DashboardMenu({ visible, onClose, onOpenConnectionSetup, onOpenS
               </Pressable>
             </View>
             {actions.filter((action) => action.onPress !== undefined).map((action) => (
-              <Pressable key={action.title} accessibilityRole="button" onPress={action.onPress} style={({ pressed }) => [styles.action, pressed && dashboardStyles.pressed]}>
+              <Pressable key={action.title} accessibilityRole="button" accessibilityState={{ disabled: "disabled" in action && action.disabled }} disabled={"disabled" in action && action.disabled} onPress={action.onPress} style={({ pressed }) => [styles.action, "disabled" in action && action.disabled && styles.disabled, pressed && dashboardStyles.pressed]}>
                 <MaterialIcons name={action.icon} size={28} color={dashboardColors.yellow} />
                 <View style={styles.copy}>
                   <Text style={styles.actionTitle}>{action.title}</Text>
@@ -59,4 +67,5 @@ const styles = StyleSheet.create({
   copy: { flex: 1, gap: 5 },
   actionTitle: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
   description: { color: "#d4e1e8", fontSize: 12, lineHeight: 18 },
+  disabled: { opacity: 0.5 },
 });

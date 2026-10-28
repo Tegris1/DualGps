@@ -9,7 +9,7 @@ export function getTerrainCrossSectionPresentation(data: BucketCrossSections | n
   const difference = model?.heightDifference ?? null;
   const roundedDifference = difference === null ? null : Number(difference.toFixed(3));
   const comparisonLabel = roundedDifference === null ? "—"
-    : `${roundedDifference > 0 ? "+" : roundedDifference < 0 ? "−" : ""}${Math.abs(roundedDifference).toFixed(3).replace(".", ",")} j.m.`;
+    : `${roundedDifference > 0 ? "+" : roundedDifference < 0 ? "−" : ""}${Math.abs(roundedDifference).toFixed(3).replace(".", ",")} m`;
   const emptyMessages: Record<TerrainSectionState, string> = {
     unselected: "Wybierz teren pomiarowy i projekt, aby zobaczyć przekrój.",
     loading: "Ładowanie przekroju modeli…",
@@ -20,12 +20,12 @@ export function getTerrainCrossSectionPresentation(data: BucketCrossSections | n
   return {
     model,
     comparisonLabel,
-    sourceLabel: "MODEL · ŁYŻKA DEMO · j.m.",
-    elevationLabel: "Wysokość względem łyżki [j.m.]",
-    distanceLabel: "Odległość od łyżki [j.m.]",
+    sourceLabel: "PRZEKRÓJ MODELU · m",
+    elevationLabel: "Wysokość względem łyżki [m]",
+    distanceLabel: "Odległość od łyżki [m]",
     emptyMessage: emptyMessages[state],
     comparisonNote: model?.comparison === "ambiguous" ? "Kilka powierzchni projektu pod łyżką — brak jednoznacznej różnicy."
       : model?.comparison === "missing" ? "Brak powierzchni projektu pod łyżką."
-      : "Jednostki modelu; położenie łyżki jest przykładowe.",
+      : "",
   };
 }

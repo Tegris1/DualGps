@@ -50,9 +50,9 @@ it("keeps flat or vertical extents finite and rejects empty and invalid geometry
   expect(createSegmentCrossSectionModel({ ...data, bucket: { distance: 0, elevation: NaN } })).toBeNull();
 });
 
-it("identifies model units and never substitutes demo readings for missing model data", () => {
+it("displays metres and never substitutes preset readings for missing model data", () => {
   const ready = getTerrainCrossSectionPresentation(data, "ready");
-  expect(ready.comparisonLabel).toBe("+1,000 j.m.");
+  expect(ready.comparisonLabel).toBe("+1,000 m");
   expect(ready.elevationLabel).toContain("względem łyżki");
   for (const state of ["unselected", "loading", "error"] as const) {
     const result = getTerrainCrossSectionPresentation(data, state);

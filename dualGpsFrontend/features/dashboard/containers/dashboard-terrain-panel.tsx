@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { View } from "react-native";
 
 import { TerrainPreviewScene } from "@/features/terrain/terrain-preview-scene";
+import { useTerrainRotation } from "@/features/terrain/hooks/use-terrain-rotation";
 
 import { DashboardTerrainPicker } from "../components/dashboard-terrain-picker";
 import { TerrainPanelError, TerrainPanelLoading, TerrainPanelView } from "../components/terrain-panel-view";
@@ -28,17 +29,19 @@ type Props = {
   controller: ReturnType<typeof useDashboardTerrain>;
   controls: ReactNode;
   compact?: boolean;
+  isActive?: boolean;
 };
 
-export function DashboardTerrainPanel({ controller, controls, compact = false }: Props) {
+export function DashboardTerrainPanel({ controller, controls, compact = false, isActive = true }: Props) {
   const { currentTerrain, targetTerrain, preview, sceneKey, onSceneError, onRetry, onOpenSelection, selection, onCrossSection } = controller;
+  const rotation = useTerrainRotation(controller.cameraControls.enabled, controller.cameraControls.onOrbit);
 
   return (
     <>
       <TerrainPanelView compact={compact} currentFilename={currentTerrain?.filename ?? null} targetFilename={targetTerrain?.filename ?? null} onChooseTerrains={onOpenSelection} controls={controls}>
-        {currentTerrain && targetTerrain ? (
+        {isActive && currentTerrain && targetTerrain ? (
           <TerrainSceneBoundary key={sceneKey} fallback={<TerrainPanelError compact={compact} onRetry={onRetry} />} onError={onSceneError}>
-            <View style={{ flex: 1, minHeight: compact ? 120 : 220 }}>
+            <View {...rotation.panHandlers} style={{ flex: 1, minHeight: compact ? 120 : 220 }} accessibilityLabel="Podgląd terenu 3D" accessibilityHint="Przeciągnij jednym palcem, aby obrócić kamerę.">
               <TerrainPreviewScene
                 currentTerrain={currentTerrain}
                 targetTerrain={targetTerrain}

@@ -7,7 +7,7 @@ export type BucketCrossSections = {
   target: SectionSegment[];
   bucket: SectionPoint;
 };
-const EPSILON = 1e-6; // World-coordinate tolerance; no assumption that source units are metres.
+const EPSILON = 1e-6; // World-coordinate tolerance; assets use one glTF unit per metre.
 
 // Independent triangle intersections preserve gaps and overlapping surface layers.
 // Coplanar triangles intersect in an area, so they have no unique profile and are skipped.

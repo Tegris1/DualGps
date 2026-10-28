@@ -8,10 +8,10 @@ The chart retains separate triangle segments, including gaps and overlapping sur
 
 ## Units and data sources
 
-- `j.m.` means source-model units. Neither surveyed units nor a vertical datum have been confirmed for these assets.
+- Distances and elevations use metres (`m`), following the [glTF coordinate and unit convention](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units). Assets must use one scene unit per metre; exported transforms remain applied.
 - Both axes are relative to the bucket: signed horizontal distance and relative elevation.
-- The bucket belongs to the procedural demonstration excavator. GNSS and IMU readings do not position it.
-- The upper height-difference card remains a separately labeled demo in metres. Its sample value is not the model chart's comparison.
+- The bucket belongs to the procedural excavator. GNSS and IMU readings do not position it.
+- The upper height-difference card uses a fixed value in metres. Its value is not the model chart's comparison.
 - The section includes both surfaces even when a surface is hidden in the 3D preview.
 
-Surveyed alignment, unit conversion, machine dimensions, and the measured bucket pose must be established before this preview can provide physical guidance.
+Surveyed alignment, machine dimensions, and the measured bucket pose must be established before this preview can provide physical guidance.

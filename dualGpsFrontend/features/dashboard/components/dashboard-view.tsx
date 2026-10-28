@@ -36,7 +36,7 @@ export function DashboardView({ data, terrain, crossSection, toolbar, focusTerra
       <ScrollView ref={scroll} contentContainerStyle={[styles.content, compact && styles.compactContent]}>
         <View style={[styles.header, compact && styles.compactHeader]}>
           <Text style={styles.brand}>DUAL GPS</Text>
-          <Text style={styles.demoBadge}>{data.sourceLabel}</Text>
+          <Text style={styles.modeBadge}>{data.sourceLabel}</Text>
         </View>
         <View style={[styles.summary, direction]}>
           <HeightDifferenceCard compact={compact} heightDifference={data.heightDifference} heightDescription={data.heightDescription} heightDirection={data.heightDirection} />

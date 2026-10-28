@@ -17,7 +17,7 @@ export function TerrainPanelView({ currentFilename, targetFilename, onChooseTerr
   return (
     <View style={[styles.panel, compact && styles.compactPanel]}>
       <View style={[styles.header, compact && styles.overlayHeader]}>
-        <Text style={[dashboardStyles.panelHeading, compact && styles.overlayTitle]}>TEREN 3D · DEMO</Text>
+        <Text style={[dashboardStyles.panelHeading, compact && styles.overlayTitle]}>TEREN 3D</Text>
         <Pressable accessibilityRole="button" onPress={onChooseTerrains} style={({ pressed }) => [styles.chooseButton, pressed && dashboardStyles.pressed]}>
           <Text style={styles.chooseLabel}>{children ? "Zmień teren" : "Wybierz teren"}</Text>
         </Pressable>
@@ -35,7 +35,7 @@ export function TerrainPanelView({ currentFilename, targetFilename, onChooseTerr
         {currentFilename ? `Pomiar: ${currentFilename}` : "Pomiar: nie wybrano"}{"\n"}
         {targetFilename ? `Projekt: ${targetFilename}` : "Projekt: nie wybrano"}
       </Text>}
-      {!compact && <Text style={styles.demoNote}>Koparka i wskaźniki są przykładowe. Przekrój pochodzi z modeli, w jednostkach modelu.</Text>}
+      {!compact && <Text style={styles.interactionHint}>Przeciągnij po widoku 3D, aby obrócić kamerę.</Text>}
     </View>
   );
 }
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   viewport: { flex: 1, minHeight: 220, backgroundColor: "#edf2f6", overflow: "hidden" },
   message: { flex: 1, minHeight: 220, alignItems: "center", justifyContent: "center", padding: 18, gap: 12 },
   caption: { fontSize: 11, lineHeight: 17, color: dashboardColors.muted },
-  demoNote: { fontSize: 10, lineHeight: 15, color: dashboardColors.muted },
+  interactionHint: { fontSize: 10, lineHeight: 15, color: dashboardColors.muted },
   loading: { ...StyleSheet.absoluteFillObject, backgroundColor: "#edf2f6", alignItems: "center", justifyContent: "center", gap: 10 },
   retryButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#e0e9ee", borderRadius: 4 },
   compactPanel: { gap: 4 },

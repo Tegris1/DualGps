@@ -1,12 +1,12 @@
 import type { DashboardReadings, DashboardSensor } from "./types";
 
-export const dashboardDemoPrimaryGnss: DashboardSensor = {
+export const dashboardPrimaryGnssPreset: DashboardSensor = {
   id: "gps-1", label: "GPS 1", status: "rtk-fix",
 };
 
 // Presentation fixtures only; these values do not describe connected hardware.
-export const dashboardDemoData: DashboardReadings = {
-  source: "demo",
+export const dashboardPresetData: DashboardReadings = {
+  source: "preset",
   crossSection: {
     current: [
       { distance: -3, elevation: 535.6 },

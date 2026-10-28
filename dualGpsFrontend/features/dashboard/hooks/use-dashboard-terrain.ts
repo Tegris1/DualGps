@@ -28,6 +28,10 @@ export function useDashboardTerrain() {
   const sectionData = sectionSnapshot?.sceneKey === sceneKey ? sectionSnapshot.data : null;
   const crossSection = useMemo(() => getTerrainCrossSectionPresentation(sectionData, sectionState), [sectionData, sectionState]);
   const cameraEnabled = preview.loaded && failedScene !== sceneKey && step === null;
+  const rotatePreview = preview.onOrbit;
+  const onOrbit = useCallback((yaw: number, elevation: number) => {
+    if (cameraEnabled) rotatePreview(yaw, elevation);
+  }, [cameraEnabled, rotatePreview]);
   const choosingTarget = step === "target";
   const options = TERRAIN_CATALOG.filter((terrain) => choosingTarget
     ? terrain.role === "target" && terrain.asset !== currentTerrain?.asset
@@ -66,6 +70,8 @@ export function useDashboardTerrain() {
     onRetry: retry,
     onOpenSelection: () => openSelection("current"),
     cameraControls: {
+      onOrbit,
+      onOpen: () => { if (cameraEnabled) setActivePanel("camera"); },
       enabled: cameraEnabled,
       visible: activePanel === "camera" && cameraEnabled,
       onToggle: () => { if (cameraEnabled) setActivePanel((panel) => panel === "camera" ? null : "camera"); },
@@ -78,6 +84,7 @@ export function useDashboardTerrain() {
       onResetView: () => { if (cameraEnabled) preview.onResetView(); },
     },
     layerControls: {
+      onOpen: () => { if (step === null) setActivePanel("layers"); },
       enabled: step === null,
       visible: activePanel === "layers" && step === null,
       canChangeVisibility: cameraEnabled,

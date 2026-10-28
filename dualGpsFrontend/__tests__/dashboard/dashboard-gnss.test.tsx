@@ -14,7 +14,7 @@ const { create } = jest.requireActual<{
   create: (element: React.ReactNode) => { update: (element: React.ReactNode) => void; unmount: () => void };
 }>("react-test-renderer");
 
-it("uses receiver state and fresh GGA quality instead of falling back to a demo fix", () => {
+it("uses receiver state and fresh GGA quality instead of falling back to a preset fix", () => {
   const input = { connected: true, isConnecting: false, fix };
   expect(getDashboardGnssStatus(input, now)).toMatchObject({ source: "receiver", statusText: "RTK FIX", tone: "success", details: "Sat: 8 · HDOP: 0,9" });
   expect(getDashboardGnssStatus({ ...input, connected: false }, now)).toMatchObject({ statusText: "Niepołączony", tone: "muted" });

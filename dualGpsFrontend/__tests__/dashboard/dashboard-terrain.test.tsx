@@ -51,6 +51,7 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => {
       terrain.cameraControls.onToggle();
       terrain.cameraControls.onRotateLeft();
+      terrain.cameraControls.onOrbit(1, 1);
     });
     expect(terrain.cameraControls.visible).toBe(false);
     expect(terrain.preview.view).toEqual(DEFAULT_VIEW);
@@ -64,10 +65,14 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => terrain.preview.onLoaded());
     expect(terrain.preview.loaded).toBe(true);
     expect(terrain.cameraControls.enabled).toBe(true);
-    expect(terrain.crossSection.comparisonLabel).toBe("+1,000 j.m.");
+    expect(terrain.crossSection.comparisonLabel).toBe("+1,000 m");
 
     const loadedCallback = terrain.preview.onLoaded;
     const loadedScene = terrain.sceneKey;
+    await act(() => terrain.cameraControls.onOrbit(0.1, 0.05));
+    expect(terrain.preview.view.yaw).toBeCloseTo(DEFAULT_VIEW.yaw + 0.1);
+    expect(terrain.preview.view.elevation).toBeCloseTo(DEFAULT_VIEW.elevation + 0.05);
+    await act(() => terrain.cameraControls.onResetView());
     await act(() => terrain.cameraControls.onToggle());
     expect(terrain.cameraControls.visible).toBe(true);
     await act(() => terrain.cameraControls.onRotateLeft());
@@ -127,7 +132,7 @@ it("requires both selections and retries loading without losing the chosen proje
     await act(() => terrain.onCrossSection(modelSection));
     await act(() => terrain.preview.onLoaded());
     await act(() => onCrossSection({ ...modelSection, current: [], target: [] }));
-    expect(terrain.crossSection.comparisonLabel).toBe("+1,000 j.m.");
+    expect(terrain.crossSection.comparisonLabel).toBe("+1,000 m");
     expect(terrain.preview.loaded).toBe(true);
     expect(terrain.cameraControls.enabled).toBe(true);
     await act(() => terrain.onOpenSelection());

@@ -20,10 +20,10 @@ export function TerrainCrossSectionPanel({ section, compact, plotHeight }: Props
       compact={compact}
       plotHeight={plotHeight}
       elevationLabel={section.elevationLabel}
-      distanceLabel={compact ? "Odległość i wysokość względem łyżki [j.m.]" : section.distanceLabel}
+      distanceLabel={compact ? "Odległość i wysokość względem łyżki [m]" : section.distanceLabel}
       emptyMessage={section.emptyMessage}
     />
-    {(!compact || section.model?.comparison !== "available") && <Text style={styles.note}>{section.comparisonNote}</Text>}
+    {!!section.comparisonNote && <Text style={styles.note}>{section.comparisonNote}</Text>}
   </View>;
 }
 

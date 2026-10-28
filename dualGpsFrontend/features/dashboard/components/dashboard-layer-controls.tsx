@@ -1,5 +1,6 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+
+import { ReturnButton } from "@/components/ui/return-button";
 
 import { terrainColors } from "@/features/terrain/theme";
 
@@ -31,9 +32,7 @@ export function DashboardLayerControls({ visible, canChangeVisibility, currentFi
     <View style={styles.panel}>
       <View style={styles.header}>
         <Text style={styles.title}>WARSTWY TERENU 3D</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Zamknij warstwy" onPress={onClose} style={styles.closeButton}>
-          <MaterialIcons name="close" size={22} color={dashboardColors.ink} />
-        </Pressable>
+        <ReturnButton onPress={onClose} accessibilityLabel="Powrót do menu" />
       </View>
       {layers.map((layer) => (
         <View key={layer.title} style={styles.layer}>
@@ -71,7 +70,6 @@ const styles = StyleSheet.create({
   panel: { gap: 8, padding: 10, backgroundColor: "#e2ebf0", borderRadius: 4 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   title: { flexShrink: 1, color: dashboardColors.ink, fontSize: 11, fontWeight: "700" },
-  closeButton: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
   layer: { flexDirection: "row", alignItems: "center", gap: 10, padding: 8, backgroundColor: "#ffffff", borderRadius: 4 },
   swatch: { width: 10, height: 10, borderRadius: 5 },
   selection: { flex: 1, minHeight: 44, justifyContent: "center", gap: 4 },

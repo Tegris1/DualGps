@@ -4,29 +4,25 @@ import { Pressable, Text, View } from "react-native";
 import { dashboardColors, dashboardStyles as styles } from "../styles";
 
 type Props = {
-  cameraEnabled: boolean;
-  cameraControlsVisible: boolean;
-  onToggleCameraControls: () => void;
-  onResetView: () => void;
-  layersEnabled: boolean;
-  layerControlsVisible: boolean;
-  onToggleLayerControls: () => void;
+  onOpenConnectionSetup?: () => void;
+  onOpenSettings?: () => void;
+  onSignOut: () => void;
   menuVisible: boolean;
   onOpenMenu: () => void;
   compact?: boolean;
 };
 
-export function DashboardToolbar({ cameraEnabled, cameraControlsVisible, onToggleCameraControls, onResetView, layersEnabled, layerControlsVisible, onToggleLayerControls, menuVisible, onOpenMenu, compact = false }: Props) {
+export function DashboardToolbar({ onOpenConnectionSetup, onOpenSettings, onSignOut, menuVisible, onOpenMenu, compact = false }: Props) {
   const items = [
-    { label: "Widok", icon: "open-with", disabled: !cameraEnabled, hint: cameraEnabled ? "Kamera 3D" : "Wczytaj teren", expanded: cameraControlsVisible, onPress: onToggleCameraControls },
-    { label: "Warstwy", icon: "layers", disabled: !layersEnabled, hint: "Powierzchnie 3D", expanded: layerControlsVisible, onPress: onToggleLayerControls },
-    { label: "Reset", icon: "restart-alt", disabled: !cameraEnabled, hint: cameraEnabled ? "Reset kamery" : "Wczytaj teren", onPress: onResetView },
+    { label: "Połączenie", icon: "bluetooth", disabled: false, hint: "Odbiornik GPS", onPress: onOpenConnectionSetup },
+    { label: "Ustawienia", icon: "settings", disabled: false, hint: "Konfiguracja", onPress: onOpenSettings },
+    { label: "Wyloguj", icon: "logout", disabled: false, hint: "Zakończ sesję", onPress: onSignOut },
     { label: "Menu", icon: "menu", disabled: false, hint: "Nawigacja i konto", expanded: menuVisible, onPress: onOpenMenu },
   ] as const;
 
   return (
     <View style={styles.toolbar}>
-      {items.map((item) => (
+      {items.filter((item) => item.onPress !== undefined).map((item) => (
         <Pressable
           key={item.label}
           accessibilityRole="button"

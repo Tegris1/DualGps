@@ -7,7 +7,7 @@ export type DashboardSensor = {
 };
 
 export type DashboardReadings = {
-  source: "demo";
+  source: "preset";
   crossSection: CrossSectionData;
   pitchDegrees: number;
   rollDegrees: number;
@@ -19,7 +19,7 @@ export type DashboardSensorViewModel = {
   id: string;
   label: string;
   statusText: string;
-  source: "demo" | "receiver";
+  source: "preset" | "receiver";
   tone: "success" | "warning" | "muted";
   details?: string;
 };
