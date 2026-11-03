@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { DEFAULT_EUPOS_SETTINGS, parseStoredEuposSettings, toNtripSettings } from "../../lib/gps/eupos-settings";
-import type { EuposSettings } from "../../lib/gps/types";
+import { DEFAULT_EUPOS_SETTINGS, parseStoredEuposSettings, toNtripSettings } from "../../features/gps/eupos-settings";
+import type { EuposSettings } from "../../features/gps/types";
 
 const settings: EuposSettings = {
   host: "caster.example.com", port: "2101", mountpoint: "STREAM",

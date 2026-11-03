@@ -1,5 +1,7 @@
 import { Buffer } from "buffer";
 
+import { NtripSettingsError } from "./settings-errors";
+
 export type NtripSettings = {
   host: string;
   port: number;
@@ -54,11 +56,11 @@ export function validateNtripSettings(settings: NtripSettings): NtripSettings {
   const mountpoint = settings.mountpoint.trim().replace(/^\/+/, "");
 
   if (!mountpoint || /\s/.test(mountpoint)) {
-    throw new Error("NTRIP mountpoint is invalid");
+    throw new NtripSettingsError("mountpoint-invalid");
   }
 
   if (/[\r\n]/.test(settings.password)) {
-    throw new Error("NTRIP password contains an invalid line break");
+    throw new NtripSettingsError("password-line-break");
   }
 
   if (
@@ -66,7 +68,7 @@ export function validateNtripSettings(settings: NtripSettings): NtripSettings {
     settings.port < 1 ||
     settings.port > 65535
   ) {
-    throw new Error("NTRIP port must be between 1 and 65535");
+    throw new NtripSettingsError("port-invalid");
   }
 
   return {
@@ -77,11 +79,11 @@ export function validateNtripSettings(settings: NtripSettings): NtripSettings {
   };
 }
 
-function validateHeaderValue(value: string, label: string): string {
+function validateHeaderValue(value: string, label: "host" | "username"): string {
   const result = value.trim();
 
   if (!result || /[\r\n]/.test(result)) {
-    throw new Error(`NTRIP ${label} is invalid`);
+    throw new NtripSettingsError(`${label}-invalid`);
   }
 
   return result;

@@ -2,15 +2,17 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@j
 import * as SecureStore from "expo-secure-store";
 import { act } from "react";
 
-import { EuposSettings } from "../../components/settings/eupos-settings";
-import { InfoBanner } from "../../components/settings/settings-controls";
-import { useEuposSettings } from "../../hooks/use-eupos-settings";
+import { EuposSettings } from "../../features/gps/components/settings/eupos-settings";
+import { InfoBanner } from "../../components/ui/form-controls";
+import { useEuposSettings } from "../../features/gps/hooks/use-eupos-settings";
+import { getEuposSaveFeedback } from "../../features/gps/presentation/eupos-feedback";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
 jest.mock("expo-secure-store", () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn() }));
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create>;
+let controller!: ReturnType<typeof useEuposSettings>;
 const readStorage = jest.mocked(SecureStore.getItemAsync);
 const writeStorage = jest.mocked(SecureStore.setItemAsync);
 const savedSettings = {
@@ -22,7 +24,9 @@ const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
 
 function Screen() {
-  return <EuposSettings controller={useEuposSettings()} />;
+  controller = useEuposSettings();
+  return <EuposSettings settings={controller.settings} isSaving={controller.isSaving}
+    saveFeedback={getEuposSaveFeedback(controller.saveResult)} onChange={controller.update} onSave={controller.save} />;
 }
 
 beforeAll(() => {
@@ -80,6 +84,9 @@ it("shows validation failures as alerts, saves successfully after correction, an
   await render();
   await save();
   expect(writeStorage).not.toHaveBeenCalled();
+  expect(controller.saveResult).toMatchObject({
+    status: "error", failure: { kind: "validation", error: { code: "password-required" } },
+  });
   expect(banners()[0].props.variant).toBe("error");
   expect(banners()[0].props.message).toContain("Enter your ASG-EUPOS password");
   expect(root.root.findAll((node: any) => node.props.accessibilityRole === "alert").length).toBeGreaterThan(0);
@@ -99,11 +106,13 @@ it("shows validation failures as alerts, saves successfully after correction, an
 
 it("reports a storage failure as an error instead of successful feedback", async () => {
   readStorage.mockResolvedValue(JSON.stringify(savedSettings));
-  writeStorage.mockRejectedValueOnce(new Error("Storage unavailable"));
+  const cause = new Error("Native storage diagnostics");
+  writeStorage.mockRejectedValueOnce(cause);
   await render();
   await save();
   expect(banners()[0].props.variant).toBe("error");
-  expect(banners()[0].props.message).toContain("Storage unavailable");
+  expect(controller.saveResult).toEqual({ status: "error", failure: { kind: "persistence", cause } });
+  expect(banners()[0].props.message).toBe("Could not save settings. Please try again.");
   expect(root.root.findAll((node: any) => node.props.accessibilityRole === "alert").length).toBeGreaterThan(0);
   expect(saveButton().props.loading).toBe(false);
 });
@@ -136,4 +145,20 @@ it("clears old feedback during a new save and shows success only after storage f
   await act(async () => { finishSave(); });
   expect(saveButton().props.loading).toBe(false);
   expect(banners()[0].props.variant).toBe("success");
+});
+
+it("normalizes port edits in the hook while preserving passwords and TLS values", async () => {
+  await render();
+  await act(() => input("Port").props.onChangeText("2x10-1"));
+  expect(controller.settings.port).toBe("2101");
+  expect(input("Port").props.value).toBe("2101");
+  await act(() => {
+    controller.update("port", "8a080");
+    controller.update("password", " secret with spaces ");
+    controller.update("useTls", true);
+  });
+  expect(controller.settings.port).toBe("8080");
+  expect(controller.settings.password).toBe(" secret with spaces ");
+  expect(controller.settings.useTls).toBe(true);
+  expect(writeStorage).not.toHaveBeenCalled();
 });

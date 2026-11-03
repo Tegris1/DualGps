@@ -3,21 +3,34 @@ import { act, type ReactElement } from "react";
 import { Text } from "react-native";
 import type { BluetoothDevice } from "react-native-bluetooth-classic";
 
-import ConnectionSetup from "../../app/(tabs)/connection_setup";
-import { GnssSolutionDetails } from "../../components/gps/gnss-solution-details";
-import { ReceiverDeviceList } from "../../components/gps/receiver-device-list";
-import { ReceiverProfileSelector } from "../../components/gps/receiver-profile-selector";
-import { BluetoothSettings } from "../../components/settings/bluetooth-settings";
-import { DebugConsole } from "../../components/settings/debug-console";
-import type { BluetoothSerialController } from "../../hooks/use-bluetooth-serial";
+import SettingsScreen from "../../app/(tabs)/settings";
+import { GnssSolutionDetails } from "../../features/gps/components/gnss-solution-details";
+import { ReceiverDeviceList } from "../../features/gps/components/receiver-device-list";
+import { ReceiverProfileSelector } from "../../features/gps/components/receiver-profile-selector";
+import { SettingsTabs } from "../../features/gps/components/settings/settings-tabs";
+import { InfoBanner } from "../../components/ui/form-controls";
+import type { BluetoothSerialController } from "../../features/gps/hooks/use-bluetooth-serial";
+import type { EuposSettingsController } from "../../features/gps/hooks/use-eupos-settings";
+import { DEFAULT_EUPOS_SETTINGS } from "../../features/gps/eupos-settings";
 import type { GgaFix } from "../../lib/gps/nmea";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
-jest.mock("../../lib/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth }) }));
+jest.mock("expo-router", () => ({
+  useRouter: () => mockRouter,
+  useLocalSearchParams: () => ({}),
+  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
+}));
+jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth, eupos: mockEupos }) }));
+jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
 
 const { create } = require("react-test-renderer");
+const mockRouter = { navigate: jest.fn() };
 let root: ReturnType<typeof create>;
 let mockBluetooth: BluetoothSerialController;
+const mockEupos: EuposSettingsController = {
+  settings: DEFAULT_EUPOS_SETTINGS, isSaving: false, saveResult: null,
+  update: jest.fn(), save: jest.fn(async () => {}),
+};
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
@@ -55,6 +68,15 @@ function action(label: string) {
   return root.root.find((node: any) =>
     node.props.accessibilityLabel === label && typeof node.props.onPress === "function",
   );
+}
+
+async function openDebug() {
+  await act(() => root.root.findByType(SettingsTabs).props.onChange("debug"));
+}
+
+function connectAction(screen: "settings" | "debug") {
+  if (screen === "debug") return action(mockBluetooth.isConnecting ? "Connecting…" : "Connect");
+  return root.root.find((node: any) => node.props.icon === "bluetooth-connected" && typeof node.props.onPress === "function");
 }
 
 function fix(overrides: Partial<GgaFix> = {}): GgaFix {
@@ -141,38 +163,127 @@ it("shows empty receivers, unnamed devices, selection, connection badges, and de
   expect(action("Unnamed receiver, BB").props.disabled).toBe(true);
 });
 
-it.each(["setup", "settings"] as const)("preserves the %s screen's device action", async (screen) => {
+it("preserves settings device selection and its separate Connect action", async () => {
   mockBluetooth = controller();
-  await render(screen === "setup" ? <ConnectionSetup /> : <BluetoothSettings bluetooth={mockBluetooth} onOpenDebug={() => {}} />);
+  await render(<SettingsScreen />);
   await act(() => action("Test receiver, AA").props.onPress());
   expect(mockBluetooth.selectDevice).toHaveBeenCalledWith("AA");
-  if (screen === "setup") {
-    expect(mockBluetooth.connectSelected).toHaveBeenCalledWith("AA");
-  } else {
-    expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
-    const connectButton = root.root.find((node: any) => node.props.label === "Connect selected device");
-    await act(() => connectButton.props.onPress());
-    expect(mockBluetooth.connectSelected).toHaveBeenCalledWith();
-  }
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  const connectButton = root.root.find((node: any) => node.props.label === "Connect selected device");
+  await act(() => connectButton.props.onPress());
+  expect(mockBluetooth.connectSelected).toHaveBeenCalledWith();
 });
 
-it("requires a profile before setup connects and disables profile changes on a connected receiver", async () => {
+it("requires a profile before settings connects and disables profile changes on a connected receiver", async () => {
   mockBluetooth = controller({ receiverModel: null });
-  await render(<ConnectionSetup />);
-  expect(action("Test receiver, AA").props.disabled).toBe(true);
+  await render(<SettingsScreen />);
+  expect(connectAction("settings").props.disabled).toBe(true);
   await act(() => action("Topcon").props.onPress());
   expect(mockBluetooth.selectReceiverModel).toHaveBeenCalledWith("topcon");
   const device = mockBluetooth.devices[0];
-  await act(() => root.update(<BluetoothSettings bluetooth={controller({ connectedDevice: device })} onOpenDebug={() => {}} />));
+  mockBluetooth = controller({ connectedDevice: device });
+  await act(() => root.update(<SettingsScreen />));
   expect(action("Topcon").props.disabled).toBe(true);
   expect(action("Kolida").props.disabled).toBe(true);
 });
 
-it("uses the same fallback readings in setup and the debug console, with UTC available in setup", async () => {
+it("returns to the dashboard from settings", async () => {
+  mockRouter.navigate.mockClear();
+  mockBluetooth = controller();
+  await render(<SettingsScreen />);
+  await act(() => action("Powrót do pulpitu").props.onPress());
+  expect(mockRouter.navigate).toHaveBeenLastCalledWith("/(tabs)");
+});
+
+it("uses fallback readings in the debug console", async () => {
   mockBluetooth = controller({ latestFix: fix({ utcTime: "123456" }), gsaDop: { receivedAt: 0, hdop: 1.25 } });
-  await render(<ConnectionSetup />);
-  expect(readings()).toEqual(expect.arrayContaining(["HDOP: 1.25", "UTC: 123456"]));
-  await act(() => root.update(<DebugConsole bluetooth={mockBluetooth} onSelectDevice={() => {}} />));
+  await render(<SettingsScreen />);
+  await openDebug();
   expect(readings()).toContain("HDOP: 1.25");
-  expect(readings()).not.toContain("UTC: 123456");
+  expect(readings()).toContain("UTC: 123456");
+});
+
+it.each(["settings", "debug"] as const)("blocks %s connections without a profile, including direct callback invocation", async (screen) => {
+  mockBluetooth = controller({ receiverModel: null });
+  await render(<SettingsScreen />);
+  if (screen === "debug") await openDebug();
+  const control = connectAction(screen);
+  expect(control.props.disabled).toBe(true);
+  await act(async () => {
+    await control.props.onPress();
+  });
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  expect(mockBluetooth.selectDevice).not.toHaveBeenCalled();
+});
+
+it.each(["settings", "debug"] as const)("blocks %s connections while another attempt is pending", async (screen) => {
+  mockBluetooth = controller({ isConnecting: true });
+  await render(<SettingsScreen />);
+  if (screen === "debug") await openDebug();
+  const control = connectAction(screen);
+  expect(control.props.disabled).toBe(true);
+  await act(async () => {
+    await control.props.onPress();
+  });
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+});
+
+it("locks profile and device selection during connection setup", async () => {
+  mockBluetooth = controller({ isConnecting: true });
+  await render(<SettingsScreen />);
+  expect(action("Kolida").props.disabled).toBe(true);
+  expect(action("Test receiver, AA").props.disabled).toBe(true);
+  await act(() => {
+    action("Kolida").props.onPress();
+    action("Test receiver, AA").props.onPress();
+  });
+  expect(mockBluetooth.selectReceiverModel).not.toHaveBeenCalled();
+  expect(mockBluetooth.selectDevice).not.toHaveBeenCalled();
+});
+
+
+it("connects from debug when eligible, switches to disconnect when online, and clears the console", async () => {
+  mockBluetooth = controller();
+  await render(<SettingsScreen />);
+  await openDebug();
+  expect(action("Connect").props.disabled).toBe(false);
+  await act(async () => { await action("Connect").props.onPress(); });
+  expect(mockBluetooth.connectSelected).toHaveBeenCalledTimes(1);
+
+  const device = mockBluetooth.devices[0];
+  mockBluetooth = controller({ connectedDevice: device, consoleEntries: [{ id: 1, message: "$GPGGA", time: "12:00" }] });
+  await act(() => root.update(<SettingsScreen />));
+  expect(action("Disconnect").props.disabled).toBe(false);
+  await act(async () => { await action("Disconnect").props.onPress(); });
+  expect(mockBluetooth.disconnect).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  const clear = root.root.find((node: any) => node.props.onPress === mockBluetooth.clearConsole);
+  await act(() => clear.props.onPress());
+  expect(mockBluetooth.clearConsole).toHaveBeenCalledTimes(1);
+});
+
+it("uses the same NTRIP summary in settings banners and debug diagnostics", async () => {
+  const device = controller().devices[0];
+  mockBluetooth = controller({ connectedDevice: device, ntripStatus: {
+    state: "streaming", message: "Corrections active.", bytesReceived: 1024, bytesSentToReceiver: 512,
+    rtcm: { validFrames: 3, invalidFrames: 0 },
+  } });
+  const summary = "Corrections active. 3 valid RTCM frames, 512 bytes forwarded.";
+  await render(<SettingsScreen />);
+  expect(root.root.findAllByType(InfoBanner).some((node: any) => node.props.message === summary && node.props.variant === "success")).toBe(true);
+  await openDebug();
+  expect(readings()).toContain(`Message: ${summary}`);
+});
+
+it("renders NTRIP failures as error banners and hides correction banners when Bluetooth is offline", async () => {
+  const device = controller().devices[0];
+  mockBluetooth = controller({ connectedDevice: device, ntripStatus: {
+    state: "error", message: "Caster rejected the credentials.", bytesReceived: 0, bytesSentToReceiver: 0,
+    rtcm: { validFrames: 0, invalidFrames: 0 },
+  } });
+  await render(<SettingsScreen />);
+  expect(root.root.findAllByType(InfoBanner).some((node: any) => node.props.variant === "error" && node.props.message === "Caster rejected the credentials.")).toBe(true);
+  mockBluetooth = controller();
+  await act(() => root.update(<SettingsScreen />));
+  expect(root.root.findAllByType(InfoBanner)).toHaveLength(1);
 });
