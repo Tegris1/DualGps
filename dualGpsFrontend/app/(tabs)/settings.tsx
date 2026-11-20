@@ -40,11 +40,11 @@ export default function SettingsScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <SettingsHeader isGpsOnline={connection.isConnected} onReturn={() => router.navigate("/(tabs)")} />
-        {activeSection !== "imu" && <ReceiverSelector value={receiverSlot} onChange={setReceiverSlot} />}
         <SettingsTabs
           activeTab={activeSection}
           onChange={setActiveSection}
         />
+        {activeSection !== "imu" && <ReceiverSelector value={receiverSlot} onChange={setReceiverSlot} />}
 
         {activeSection === "imu" && <ImuSettings controller={gps.imus} />}
         {activeSection === "bluetooth" && (
