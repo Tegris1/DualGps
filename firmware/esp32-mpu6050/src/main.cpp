@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <esp_system.h>
 #include <math.h>
+#include <mbedtls/sha1.h>
 #include "config.h"
 
 #if !defined(CONFIG_BT_SPP_ENABLED)
@@ -13,13 +14,36 @@ namespace {
 BluetoothSerial bluetooth;
 struct Packet { char text[512]; size_t length; };
 QueueHandle_t outgoing;
-char deviceId[13];
+char sensorUuid[37];
 uint32_t bootId, sequence = 0;
 uint8_t mpuAddress = 0;
 float accel[3] = {}, gyro[3] = {}, bias[3] = {};
 float angle = 0;
 bool calibrated = false, angleInitialized = false;
 uint32_t lastSample = 0, lastGravity = 0;
+
+bool initializeUuid() {
+  // UUIDv5: project namespace 6d8f8ce2-4fe4-4f76-8f3c-0820e381b83d,
+  // followed by the six factory MAC bytes. Keep this namespace unchanged so
+  // reflashing (even after erasing flash) preserves the board's identity.
+  uint8_t input[22] = {0x6d, 0x8f, 0x8c, 0xe2, 0x4f, 0xe4, 0x4f, 0x76,
+                       0x8f, 0x3c, 0x08, 0x20, 0xe3, 0x81, 0xb8, 0x3d};
+  const uint64_t mac = ESP.getEfuseMac();
+  for (unsigned i = 0; i < 6; ++i) input[16 + i] = static_cast<uint8_t>(mac >> (8*i));
+  uint8_t digest[20];
+  if (mbedtls_sha1_ret(input, sizeof(input), digest) != 0) return false;
+  digest[6] = (digest[6] & 0x0f) | 0x50; // version 5
+  digest[8] = (digest[8] & 0x3f) | 0x80; // RFC variant
+  const char hex[] = "0123456789abcdef";
+  unsigned out = 0;
+  for (unsigned i = 0; i < 16; ++i) {
+    if (i == 4 || i == 6 || i == 8 || i == 10) sensorUuid[out++] = '-';
+    sensorUuid[out++] = hex[digest[i] >> 4];
+    sensorUuid[out++] = hex[digest[i] & 0x0f];
+  }
+  sensorUuid[out] = '\0';
+  return true;
+}
 
 float wrapAngle(float degrees) {
   while (degrees >= 180.0f) degrees -= 360.0f;
@@ -146,10 +170,10 @@ void queueTelemetry(uint32_t now, bool sensorPresent) {
   if (valid) snprintf(angleText, sizeof(angleText), "%.3f", wrapAngle(IMU_ANGLE_SIGN * angle + IMU_ANGLE_OFFSET_DEG));
   Packet packet{};
   const int length = snprintf(packet.text, sizeof(packet.text),
-    "{\"type\":\"dualgps.imu\",\"v\":1,\"id\":\"%s\",\"device\":\"%s\","
+    "{\"type\":\"dualgps.imu\",\"v\":2,\"uuid\":\"%s\","
     "\"boot\":%lu,\"seq\":%lu,\"ms\":%lu,\"accel\":[%.4f,%.4f,%.4f],"
     "\"gyro\":[%.3f,%.3f,%.3f],\"angle\":%s,\"calibrated\":%s,\"status\":\"%s\"}\n",
-    SECTION_ID, deviceId, static_cast<unsigned long>(bootId), static_cast<unsigned long>(sequence++),
+    sensorUuid, static_cast<unsigned long>(bootId), static_cast<unsigned long>(sequence++),
     static_cast<unsigned long>(now), accel[0], accel[1], accel[2], gyro[0], gyro[1], gyro[2],
     angleText, calibrated ? "true" : "false", status);
   if (length <= 0 || static_cast<size_t>(length) >= sizeof(packet.text)) return;
@@ -169,11 +193,13 @@ void sendTelemetry(void *) {
 
 void setup() {
   Serial.begin(115200);
-  const uint64_t mac = ESP.getEfuseMac();
-  snprintf(deviceId, sizeof(deviceId), "%04X%08X", static_cast<unsigned>(mac >> 32), static_cast<unsigned>(mac));
+  if (!initializeUuid()) {
+    Serial.println("Sensor UUID initialization failed; reboot the board.");
+    for (;;) delay(1000);
+  }
   bootId = esp_random();
-  char name[48];
-  snprintf(name, sizeof(name), "DualGPS-IMU-%s-%s", SECTION_ID, deviceId + 6);
+  char name[64];
+  snprintf(name, sizeof(name), "DualGPS-IMU-%s", sensorUuid);
   Wire.begin(SDA_PIN, SCL_PIN, 400000);
   Wire.setTimeOut(20);
   outgoing = xQueueCreate(1, sizeof(Packet));
@@ -182,7 +208,7 @@ void setup() {
     Serial.println("Bluetooth/task initialization failed; reboot the board.");
     for (;;) delay(1000);
   }
-  Serial.printf("Section: %s; device: %s; pair with %s\n", SECTION_ID, deviceId, name);
+  Serial.printf("Sensor UUID: %s; pair with %s; assign the section in the app.\n", sensorUuid, name);
 }
 
 void loop() {

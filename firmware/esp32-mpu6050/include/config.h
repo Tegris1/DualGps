@@ -1,20 +1,6 @@
 #pragma once
 
-// PlatformIO selects these separately for the three boards. For an Arduino IDE
-// build, define IMU_SECTION as 1 (boom), 2 (arm/stick), or 3 (bucket).
-#ifndef IMU_SECTION
-#error "Select a section: build environment boom, arm, or bucket"
-#endif
-
-#if IMU_SECTION == 1
-constexpr const char *SECTION_ID = "boom";
-#elif IMU_SECTION == 2
-constexpr const char *SECTION_ID = "arm";
-#elif IMU_SECTION == 3
-constexpr const char *SECTION_ID = "bucket";
-#else
-#error "IMU_SECTION must be 1, 2, or 3"
-#endif
+// All boards use the same firmware. Assign boom/arm/bucket in the Android app.
 
 constexpr int SDA_PIN = 21;
 constexpr int SCL_PIN = 22;

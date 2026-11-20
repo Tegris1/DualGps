@@ -1,14 +1,10 @@
 # Excavator arm IMUs: ESP32 + MPU6050
 
-Flash one board per section. The same source builds three firmware images:
+Flash the **same `imu` firmware** to every board. No boom/arm/bucket ID is configured in the firmware. Choose the section in the Android app after pairing.
 
-| Build environment | Packet `id` | Section | Bluetooth name |
-| --- | --- | --- | --- |
-| `boom` | `boom` | Main boom / wysięgnik | `DualGPS-IMU-boom-xxxxxx` |
-| `arm` | `arm` | Stick / dipper / ramię | `DualGPS-IMU-arm-xxxxxx` |
-| `bucket` | `bucket` | Bucket / łyżka | `DualGPS-IMU-bucket-xxxxxx` |
+Each ESP32 derives a stable **UUIDv5** from its factory eFuse MAC bytes and the fixed project namespace `6d8f8ce2-4fe4-4f76-8f3c-0820e381b83d`. The UUID remains the same across power loss, normal reflashing, and flash erasure. Replacing the board changes the UUID. Do not change the namespace after deploying sensors. UUID construction follows [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562.html#section-5.5); the UUID identifies a sensor and is not an authentication secret.
 
-`xxxxxx` is a hardware-derived suffix. Every packet also contains a full 12-digit hexadecimal `device` ID derived from the ESP32's factory eFuse MAC value. The section identifies the machine part; the hardware ID distinguishes individual boards, including replacement boards with the same section firmware. It is an identifier, not an authentication secret or the displayed Bluetooth MAC address.
+The Bluetooth name is `DualGPS-IMU-<full UUID>`, for example `DualGPS-IMU-3ea34a50-4d30-5c51-8fe3-b1249a7a3101`. Every telemetry packet includes the same UUID, without a section label or a separate MAC-based device field.
 
 ## Hardware and wiring
 
@@ -39,15 +35,14 @@ PowerShell setup, from this directory:
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install platformio==6.1.18
 $env:PLATFORMIO_CORE_DIR = Join-Path (Get-Location) '.pio-core'
-.\.venv\Scripts\python.exe -m platformio run
+.\.venv\Scripts\python.exe -m platformio run -e imu
 ```
 
-Connect one board over USB, find its port, and flash the environment for that board. Change `COM5` to its actual port. Run **one** of these commands for each board:
+Connect one board over USB, find its port, and upload the generic firmware. Change `COM5` to its actual port. Repeat the same command for the other boards; no source or ID changes are needed:
 
 ```powershell
-.\.venv\Scripts\python.exe -m platformio run -e boom -t upload --upload-port COM5
-.\.venv\Scripts\python.exe -m platformio run -e arm -t upload --upload-port COM5
-.\.venv\Scripts\python.exe -m platformio run -e bucket -t upload --upload-port COM5
+.\.venv\Scripts\python.exe -m platformio device list
+.\.venv\Scripts\python.exe -m platformio run -e imu -t upload --upload-port COM5
 ```
 
 Inspect startup and I²C diagnostics over USB:
@@ -56,7 +51,7 @@ Inspect startup and I²C diagnostics over USB:
 .\.venv\Scripts\python.exe -m platformio device monitor --port COM5 --baud 115200
 ```
 
-The build outputs are `.pio/build/<environment>/firmware.bin`; use PlatformIO's upload command to install the matching bootloader and partition table as well. Nothing in the build automatically flashes a connected board.
+The build outputs are `.pio/build/imu/firmware.bin`; use PlatformIO's upload command to install the matching bootloader and partition table as well. Nothing in the build automatically flashes a connected board.
 
 ## Calibration and angle convention
 
@@ -64,7 +59,7 @@ At startup, keep each section stationary for approximately **two seconds**. The 
 
 The sensor reports the section's **absolute inclination relative to horizontal**, in degrees, upward positive, in `[-180, 180]`. It uses `atan2(ax, az)` for gravity tilt and integrates `-gyroY` between measurements. A complementary filter handles the angle wrap at ±180°. The MPU6050 is sampled at 100 Hz, with ±4 g acceleration, ±500 °/s gyro range, and approximately 20 Hz hardware low-pass filtering. Telemetry is sent at 20 Hz.
 
-For a fixed mounting offset, add `-DIMU_ANGLE_OFFSET_DEG=-2.5f` (example only) to that board's `build_flags` in `platformio.ini`; retain its `-DIMU_SECTION` flag. `IMU_ANGLE_SIGN` can be `1.0f` or `-1.0f`. Compare at least two independently measured angles before selecting a sign or offset. These settings do not replace correct axis alignment or accelerometer scale calibration.
+For a fixed mounting offset, add `-DIMU_ANGLE_OFFSET_DEG=-2.5f` (example only) to `build_flags` in `platformio.ini`. This is a mounting adjustment, independent of section assignment. `IMU_ANGLE_SIGN` can be `1.0f` or `-1.0f`. Compare at least two independently measured angles before selecting a sign or offset. These settings do not replace correct axis alignment or accelerometer scale calibration.
 
 Large acceleration, clipping, sampling gaps, or excessive hinge-axis inclination make the angle unreliable. Gyro-only propagation is limited to one second before a new trustworthy gravity reading is required. Acceleration with a magnitude near 1 g can still contaminate gravity tilt: a six-axis MPU6050 cannot perfectly distinguish sustained machine acceleration from tilt. This implementation estimates planar section inclination; it provides no absolute yaw and does not integrate acceleration into a position estimate.
 
@@ -73,13 +68,13 @@ Large acceleration, clipping, sampling gaps, or excessive hinge-axis inclination
 The ESP32 is an SPP server; the Android app initiates the connection. Pair in Android settings first. With the pinned Arduino core, use `1234` if Android requests a legacy pairing PIN. Each message is one ASCII JSON object followed by `\n`, with a maximum of 512 characters. Example:
 
 ```json
-{"type":"dualgps.imu","v":1,"id":"boom","device":"AABBCCDDEEFF","boot":123456,"seq":42,"ms":2100,"accel":[0.8660,0.0000,0.5000],"gyro":[0.000,0.000,0.000],"angle":60.000,"calibrated":true,"status":"ok"}
+{"type":"dualgps.imu","v":2,"uuid":"3ea34a50-4d30-5c51-8fe3-b1249a7a3101","boot":123456,"seq":42,"ms":2100,"accel":[0.8660,0.0000,0.5000],"gyro":[0.000,0.000,0.000],"angle":60.000,"calibrated":true,"status":"ok"}
 ```
 
 | Field | Meaning |
 | --- | --- |
 | `type`, `v` | Protocol marker and version |
-| `id`, `device` | Section role and unique physical board ID |
+| `uuid` | Stable sensor UUIDv5; the section is assigned in the app |
 | `boot` | Random unsigned 32-bit boot/session identifier |
 | `seq` | Unsigned 32-bit packet counter, wraps naturally |
 | `ms` | Board uptime from `millis()`, wraps naturally |
@@ -95,15 +90,17 @@ Board uptime is not synchronized between sensors. The frontend records local arr
 
 ## Use in Dual GPS
 
-1. Flash the three correct roles, power the boards, and keep them still until calibrated.
-2. Pair their distinct `DualGPS-IMU-…` names in Android Bluetooth settings.
+This is protocol **v2**. Update both firmware and app together. An older v1 app cannot read these packets; the updated app rejects v1 packets. If Android caches the old role-based Bluetooth name, unpair and pair the board again.
+
+1. Flash the same firmware to all three boards, power them, and keep them still until calibrated.
+2. Pair their `DualGPS-IMU-<UUID>` names in Android Bluetooth settings.
 3. Open the native Dual GPS app in online mode, then **Settings > IMU**.
-4. Select **boom**, refresh the paired sensors, select its device, and connect. Repeat for **arm** and **bucket**.
-5. Check the reported hardware IDs, angles, raw measurements, and calibration status. A role or hardware mismatch is rejected. One Bluetooth address cannot be assigned to both a GNSS receiver and an IMU.
-6. Return to the dashboard. Three fresh `ok` samples drive the separate boom, arm, and bucket pivots. The scene converts absolute angles into relative joint rotations and updates the bucket cross-section at up to 5 Hz. If any section is unavailable, the arm and its cross-section are hidden until the three valid readings return. Offline mode retains the demonstration pose and creates no hardware connections.
+4. Select **boom**, refresh the paired sensors, choose the UUID mounted on the boom, and press **Assign and connect IMU**. Repeat for **arm** and **bucket**. Any board can be used for any section.
+5. The app saves each UUID/address-to-section mapping. It restores assignments after restart but connects only when requested. A UUID cannot be assigned to two sections. To move a board, disconnect it and **Clear assignment** in its old section, then assign it in the new section.
+6. Incoming telemetry must match the selected UUID. Identity mismatches and stale data do not move the model. Three fresh `ok` samples drive the boom, arm, and bucket pivots; offline mode keeps its demonstration pose without Bluetooth.
 
 The existing excavator model still uses presentation proportions, terrain-based scale and placement, and a fixed heading. Moving it from IMU angles is **not yet a surveyed bucket position**: that requires measured hinge/link geometry, sensor mounting calibration, machine base attitude, and a calibrated transform from the GNSS receivers into the terrain coordinate system. The three arm sensors also do not measure the body pitch/roll, so online body inclination is shown as unavailable.
 
 ## Validation
 
-All three firmware environments should compile before flashing. Frontend tests cover protocol validation, distinct IDs, sequence rollover, wrong-role rejection, sample freshness/skew, independent Bluetooth lifecycles, and absolute-to-relative arm kinematics. Compilation and software tests do not replace checking actual I²C hardware, mounting signs, vibration, Bluetooth range, or five simultaneous connections (two GNSS receivers plus three IMUs) on the intended Android phone.
+The single `imu` firmware environment should compile before flashing. Frontend tests cover protocol validation, UUID validation, saved section assignments, sequence rollover, mismatched-UUID rejection, sample freshness/skew, independent Bluetooth lifecycles, and absolute-to-relative arm kinematics. Compilation and software tests do not replace checking actual I²C hardware, mounting signs, vibration, Bluetooth range, or five simultaneous connections (two GNSS receivers plus three IMUs) on the intended Android phone.
