@@ -10,7 +10,7 @@ import { NtripConnection, type NtripConnectionCallbacks, type NtripState } from 
 import { configureTopcon } from "../../lib/gps/receiver-profiles";
 import { ensureBluetoothConnectPermission } from "../../features/gps/bluetooth-permissions";
 import { gga, gsa } from "../fixtures/nmea";
-import { imuPacket } from "../fixtures/imu";
+import { imuPacket, IMU_TEST_UUIDS } from "../fixtures/imu";
 
 jest.mock("react-native", () => ({ NativeModules: { RNBluetoothClassic: {} } }));
 jest.mock("react-native-bluetooth-classic", () => ({
@@ -23,6 +23,7 @@ jest.mock("react-native-bluetooth-classic", () => ({
 jest.mock("../../lib/gps/ntrip-connection", () => ({ NtripConnection: jest.fn() }));
 jest.mock("../../lib/gps/receiver-profiles", () => ({ configureTopcon: jest.fn() }));
 jest.mock("../../features/gps/bluetooth-permissions", () => ({ ensureBluetoothConnectPermission: jest.fn() }));
+jest.mock("../../lib/secure-storage", () => ({ createSecureStorage: () => mockImuStorage }));
 jest.mock("../../features/gps/hooks/use-eupos-settings", () => ({
   useEuposSettings: (slot: number) => ({ settings: slot === 2 ? mockSecondProviderSettings : mockProviderSettings }),
 }));
@@ -38,6 +39,10 @@ const disconnectSubscription = { remove: jest.fn() };
 const settings = { ...DEFAULT_EUPOS_SETTINGS, username: "operator", password: "secret" };
 const mockProviderSettings = settings;
 const mockSecondProviderSettings = { ...settings, username: "second-operator", mountpoint: "SECOND" };
+const mockImuStorage = {
+  getItem: jest.fn<(key: string) => Promise<string | null>>().mockResolvedValue(null),
+  setItem: jest.fn<(key: string, value: string) => Promise<void>>().mockResolvedValue(undefined),
+};
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
@@ -109,6 +114,8 @@ beforeEach(() => {
   root = null;
   receiver = makeReceiver();
   sessions = [];
+  mockImuStorage.getItem.mockReset().mockResolvedValue(null);
+  mockImuStorage.setItem.mockReset().mockResolvedValue(undefined);
   disconnectListeners = [];
   jest.mocked(ensureBluetoothConnectPermission).mockReset().mockResolvedValue(true);
   jest.mocked(configureTopcon).mockReset().mockResolvedValue(undefined);
@@ -568,19 +575,22 @@ it("reserves a device across both slots until a cancelled native connection has 
   expect(gps.bluetooth.connectedDevice).toBeNull();
 });
 
-it("receives three independent IMUs, rejects wrong roles, expires poses and cleans up without sending GNSS commands", async () => {
+it("receives three assigned UUIDs, rejects mismatches, expires poses and cleans up without sending GNSS commands", async () => {
   let gps!: ReturnType<typeof useGps>;
   const hardware = [makeReceiver("IMU1"), makeReceiver("IMU2"), makeReceiver("IMU3")];
+  hardware.forEach((item, index) => { item.name = `DualGPS-IMU-${IMU_TEST_UUIDS[(["boom", "arm", "bucket"] as const)[index]]}`; });
   function Consumer() { gps = useGps(); return null; }
   await act(() => { root = create(<GpsProvider><Consumer /></GpsProvider>); });
   jest.mocked(BluetoothClassic.connectToDevice).mockImplementation(async (address) => device(hardware.find((item) => item.address === address)!));
+  jest.mocked(BluetoothClassic.getBondedDevices).mockResolvedValue(hardware.map((item) => device(item)));
+  await act(async () => { await Promise.all(gps.imus.sensors.map((sensor) => sensor.refreshDevices())); });
   await act(async () => {
     await Promise.all(gps.imus.sensors.map((sensor, index) => sensor.connectSelected(hardware[index].address)));
   });
   expect(configureTopcon).not.toHaveBeenCalled();
   expect(NtripConnection).not.toHaveBeenCalled();
   await act(() => hardware[0].emit(JSON.stringify(imuPacket("arm"))));
-  expect(gps.imus.sensors[0].error).toContain("Expected boom");
+  expect(gps.imus.sensors[0].error).toContain("UUID does not match");
   expect(gps.imus.pose).toBeNull();
   await act(() => {
     hardware.forEach((item, index) => item.emit(JSON.stringify(imuPacket((["boom", "arm", "bucket"] as const)[index]))));
@@ -588,7 +598,7 @@ it("receives three independent IMUs, rejects wrong roles, expires poses and clea
   expect(gps.imus.pose).toEqual({ boom: 60, arm: 60, bucket: 60 });
   await act(() => disconnected(device(hardware[1])));
   expect(gps.imus.sensors[1].reading).toBeNull();
-  expect(gps.imus.sensors[0].reading?.id).toBe("boom");
+  expect(gps.imus.sensors[0].reading?.uuid).toBe(IMU_TEST_UUIDS.boom);
   expect(gps.imus.pose).toBeNull();
   await act(async () => { await gps.imus.sensors[1].connectSelected("IMU2"); });
   await act(() => hardware[1].emit(JSON.stringify(imuPacket("arm"))));
@@ -600,4 +610,58 @@ it("receives three independent IMUs, rejects wrong roles, expires poses and clea
   expect(hardware.every((item) => item.disconnect.mock.calls.length === 1)).toBe(true);
   expect(hardware[0].subscription.remove).toHaveBeenCalledTimes(1);
   expect(NtripConnection).not.toHaveBeenCalled();
+});
+
+it("restores an arbitrary UUID-to-section choice and requires clearing it before assigning the same board elsewhere", async () => {
+  let gps!: ReturnType<typeof useGps>;
+  const binding = { uuid: IMU_TEST_UUIDS.bucket, address: "CC" };
+  mockImuStorage.getItem.mockResolvedValue(JSON.stringify({ boom: binding }));
+  const board = makeReceiver("CC");
+  board.name = `DualGPS-IMU-${binding.uuid}`;
+  jest.mocked(BluetoothClassic.getBondedDevices).mockResolvedValue([device(board)]);
+  jest.mocked(BluetoothClassic.connectToDevice).mockResolvedValue(device(board));
+  function Consumer() { gps = useGps(); return null; }
+  await act(async () => { root = create(<GpsProvider><Consumer /></GpsProvider>); });
+  expect(gps.imus.sensors[0].binding).toEqual(binding);
+  expect(gps.imus.sensors[0].selectedAddress).toBe("CC");
+  await act(async () => { await Promise.all(gps.imus.sensors.map((sensor) => sensor.refreshDevices())); });
+  await act(async () => { await gps.imus.sensors[0].connectSelected(); });
+  await act(() => board.emit(JSON.stringify(imuPacket("bucket", { angle: 75 }))));
+  expect(gps.imus.sensors[0].reading?.angle).toBe(75);
+  await act(async () => { await gps.imus.sensors[1].connectSelected("CC"); });
+  expect(gps.imus.sensors[1].error).toContain("assigned to boom");
+  expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(1);
+  await act(async () => { await gps.imus.sensors[0].disconnect(); });
+  await act(async () => { await gps.imus.sensors[0].clearAssignment(); });
+  expect(gps.imus.sensors[0].binding).toBeNull();
+  await act(async () => { await gps.imus.sensors[1].connectSelected("CC"); });
+  await act(() => board.emit(JSON.stringify(imuPacket("bucket", { angle: -25 }))));
+  expect(gps.imus.sensors[1].reading?.angle).toBe(-25);
+  expect(gps.imus.sensors[0].reading).toBeNull();
+  expect(JSON.parse(mockImuStorage.setItem.mock.calls.at(-1)![1])).toEqual({ arm: binding });
+});
+
+it("does not open Bluetooth when assignment persistence fails, and supports retry and cancellation during saving", async () => {
+  let gps!: ReturnType<typeof useGps>;
+  const board = makeReceiver("DD");
+  board.name = `DualGPS-IMU-${IMU_TEST_UUIDS.boom}`;
+  jest.mocked(BluetoothClassic.getBondedDevices).mockResolvedValue([device(board)]);
+  jest.mocked(BluetoothClassic.connectToDevice).mockResolvedValue(device(board));
+  function Consumer() { gps = useGps(); return null; }
+  await act(async () => { root = create(<GpsProvider><Consumer /></GpsProvider>); });
+  await act(async () => { await gps.imus.sensors[0].refreshDevices(); });
+  mockImuStorage.setItem.mockRejectedValueOnce(new Error("Storage unavailable"));
+  await act(async () => { await gps.imus.sensors[0].connectSelected("DD"); });
+  expect(gps.imus.sensors[0].error).toContain("Could not save IMU assignment");
+  expect(BluetoothClassic.connectToDevice).not.toHaveBeenCalled();
+  const pending = deferred<void>();
+  mockImuStorage.setItem.mockReturnValueOnce(pending.promise);
+  let connecting!: Promise<void>;
+  await act(async () => { connecting = gps.imus.sensors[0].connectSelected("DD"); });
+  expect(gps.imus.sensors[0].isConnecting).toBe(true);
+  await act(async () => { await gps.imus.sensors[0].disconnect(); });
+  await act(async () => { pending.resolve(); await connecting; });
+  expect(BluetoothClassic.connectToDevice).not.toHaveBeenCalled();
+  await act(async () => { await gps.imus.sensors[0].connectSelected("DD"); });
+  expect(gps.imus.sensors[0].connectedDevice).toBe(device(board));
 });

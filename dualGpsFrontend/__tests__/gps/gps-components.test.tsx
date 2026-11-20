@@ -14,7 +14,7 @@ import type { EuposSettingsController } from "../../features/gps/hooks/use-eupos
 import { DEFAULT_EUPOS_SETTINGS } from "../../features/gps/eupos-settings";
 import type { GgaFix } from "../../lib/gps/nmea";
 import type { ArmImuController } from "../../features/imu/use-arm-imus";
-import { imuPacket } from "../fixtures/imu";
+import { imuPacket, IMU_TEST_UUIDS } from "../fixtures/imu";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
 jest.mock("expo-router", () => ({
@@ -344,21 +344,33 @@ it("prevents selecting a Bluetooth device already connected to the other slot", 
 
 it("connects IMUs by section and keeps their actions separate from GNSS profiles", async () => {
   mockBluetooth = controller();
+  const boards = (["boom", "arm", "bucket"] as const).map((id, index) => ({
+    address: `IMU${index}`, name: `DualGPS-IMU-${IMU_TEST_UUIDS[id]}`,
+  } as BluetoothDevice));
   mockImus = { sensors: (["boom", "arm", "bucket"] as const).map((section, index) => {
-    const device = { address: `IMU${index}`, name: `DualGPS-IMU-${section}-00000${index}` } as BluetoothDevice;
-    return { ...controller({ devices: [device], selectedAddress: device.address, selectedDevice: device }),
-      section, fresh: false, reading: null, error: null };
-  }), pose: null };
+    const device = boards[index];
+    return { ...controller({ devices: boards, selectedAddress: device.address, selectedDevice: device }),
+      section, fresh: false, reading: null, error: null, binding: null, assignmentReady: true,
+      clearAssignment: jest.fn(async () => {}) };
+  }), pose: null, assignmentError: null };
   await render(<SettingsScreen />);
   await act(() => root.root.findByType(SettingsTabs).props.onChange("imu"));
   expect(readings()).toContain("Boom / Wysięgnik");
-  const connect = () => root.root.find((node: any) => node.props.label === "Connect IMU");
+  await act(() => action(`${boards[2].name}, ${boards[2].address}`).props.onPress());
+  expect(mockImus.sensors[0].selectDevice).toHaveBeenCalledWith("IMU2");
+  const connect = () => root.root.find((node: any) => node.props.label === "Assign and connect IMU");
   await act(() => connect().props.onPress());
   expect(mockImus.sensors[0].connectSelected).toHaveBeenCalledTimes(1);
   expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
   expect(mockImus.sensors[0].selectReceiverModel).not.toHaveBeenCalled();
+  mockImus.sensors[0].binding = { uuid: IMU_TEST_UUIDS.bucket, address: "IMU2" };
+  await act(() => root.update(<SettingsScreen />));
+  const clearAssignment = root.root.find((node: any) => node.props.label === "Clear assignment");
+  await act(() => clearAssignment.props.onPress());
+  expect(mockImus.sensors[0].clearAssignment).toHaveBeenCalledTimes(1);
   await act(() => action("arm").props.onPress());
   expect(readings()).toContain("Arm / Ramię");
+  expect(readings()).not.toContain(boards[2].name);
   await act(() => connect().props.onPress());
   expect(mockImus.sensors[1].connectSelected).toHaveBeenCalledTimes(1);
   mockImus.sensors[1] = { ...mockImus.sensors[1], connectedDevice: mockImus.sensors[1].devices[0], fresh: true,

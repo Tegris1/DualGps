@@ -6,9 +6,8 @@ export const IMU_MAX_SKEW_MS = 200;
 
 export type ImuPacket = {
   type: "dualgps.imu";
-  v: 1;
-  id: ImuSection;
-  device: string;
+  v: 2;
+  uuid: string;
   boot: number;
   seq: number;
   ms: number;
@@ -19,6 +18,15 @@ export type ImuPacket = {
   status: "ok" | "calibrating" | "unreliable" | "sensor-error";
 };
 export type ImuReading = ImuPacket & { receivedAt: number };
+
+export function isImuUuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+export function imuUuidFromName(name: string | undefined): string | null {
+  const uuid = name?.startsWith("DualGPS-IMU-") ? name.slice("DualGPS-IMU-".length) : null;
+  return isImuUuid(uuid) ? uuid.toLowerCase() : null;
+}
 
 function uint32(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
@@ -33,9 +41,8 @@ export function parseImuPacket(line: string): ImuPacket | null {
     const p: unknown = JSON.parse(line);
     if (!p || typeof p !== "object" || Array.isArray(p)) return null;
     const value = p as Record<string, unknown>;
-    if (value.type !== "dualgps.imu" || value.v !== 1 ||
-        !IMU_SECTIONS.includes(value.id as ImuSection) ||
-        typeof value.device !== "string" || !/^[0-9A-F]{12}$/.test(value.device) ||
+    if (value.type !== "dualgps.imu" || value.v !== 2 || !isImuUuid(value.uuid) ||
+        "id" in value || "device" in value ||
         !uint32(value.boot) || !uint32(value.seq) || !uint32(value.ms) ||
         !vector(value.accel, 4.01) || !vector(value.gyro, 511) ||
         typeof value.calibrated !== "boolean" ||
@@ -43,7 +50,7 @@ export function parseImuPacket(line: string): ImuPacket | null {
     if (value.status === "ok") {
       if (!value.calibrated || typeof value.angle !== "number" || !Number.isFinite(value.angle) || Math.abs(value.angle) > 180) return null;
     } else if (value.angle !== null) return null;
-    return value as ImuPacket;
+    return { ...value, uuid: value.uuid.toLowerCase() } as ImuPacket;
   } catch {
     return null;
   }
@@ -55,17 +62,13 @@ export class ImuStream {
   private last: ImuReading | null = null;
   error: string | null = null;
 
-  constructor(private readonly section: ImuSection) {}
+  constructor(private readonly expectedUuid: string) {}
 
   accept(line: string, receivedAt: number): ImuReading | null {
     const packet = parseImuPacket(line);
     if (!packet) { this.error = "Invalid IMU packet."; return null; }
-    if (packet.id !== this.section) {
-      this.error = `Expected ${this.section} sensor, received ${packet.id}.`;
-      return null;
-    }
-    if (this.last && this.last.device !== packet.device) {
-      this.error = "Sensor hardware ID changed. Reconnect the correct sensor.";
+    if (packet.uuid !== this.expectedUuid.toLowerCase()) {
+      this.error = "Sensor UUID does not match this section's assignment. Select the correct sensor.";
       return null;
     }
     if (this.last?.boot === packet.boot) {
@@ -83,6 +86,6 @@ export function getArmAngles(readings: Record<ImuSection, ImuReading | null>, no
   if (samples.some((p) => !p || p.status !== "ok" || p.angle === null || now - p.receivedAt >= IMU_MAX_AGE_MS)) return null;
   const times = samples.map((p) => p!.receivedAt);
   if (Math.max(...times) - Math.min(...times) > IMU_MAX_SKEW_MS) return null;
-  if (new Set(samples.map((p) => p!.device)).size !== 3) return null;
+  if (new Set(samples.map((p) => p!.uuid)).size !== 3) return null;
   return { boom: readings.boom!.angle!, arm: readings.arm!.angle!, bucket: readings.bucket!.angle! };
 }
