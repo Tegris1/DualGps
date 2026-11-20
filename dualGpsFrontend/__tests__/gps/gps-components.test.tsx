@@ -20,15 +20,22 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
   useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
 }));
-jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth, eupos: mockEupos }) }));
+jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({
+  bluetooth: mockBluetooth, eupos: mockEupos, secondBluetooth: mockSecondBluetooth, secondEupos: mockSecondEupos,
+}) }));
 jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
 
 const { create } = require("react-test-renderer");
 const mockRouter = { navigate: jest.fn() };
 let root: ReturnType<typeof create>;
 let mockBluetooth: BluetoothSerialController;
+let mockSecondBluetooth: BluetoothSerialController;
 const mockEupos: EuposSettingsController = {
   settings: DEFAULT_EUPOS_SETTINGS, isSaving: false, saveResult: null,
+  update: jest.fn(), save: jest.fn(async () => {}),
+};
+const mockSecondEupos: EuposSettingsController = {
+  ...mockEupos, settings: { ...DEFAULT_EUPOS_SETTINGS, username: "gps-2-user" },
   update: jest.fn(), save: jest.fn(async () => {}),
 };
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
@@ -286,4 +293,47 @@ it("renders NTRIP failures as error banners and hides correction banners when Bl
   mockBluetooth = controller();
   await act(() => root.update(<SettingsScreen />));
   expect(root.root.findAllByType(InfoBanner)).toHaveLength(1);
+});
+
+it("switches Bluetooth actions, diagnostics and caster settings to GPS 2 without affecting GPS 1", async () => {
+  mockBluetooth = controller({ connectedDevice: controller().devices[0] });
+  const secondDevice = { address: "BB", name: "Second receiver" } as BluetoothDevice;
+  mockSecondBluetooth = controller({ devices: [secondDevice], selectedAddress: "BB", selectedDevice: secondDevice });
+  await render(<SettingsScreen />);
+  await act(() => action("GPS 2").props.onPress());
+  expect(action("GPS 2").props.accessibilityState.checked).toBe(true);
+  expect(readings()).toContain("Second receiver");
+  await act(async () => { await connectAction("settings").props.onPress(); });
+  expect(mockSecondBluetooth.connectSelected).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.disconnect).not.toHaveBeenCalled();
+  await act(() => root.root.findByType(SettingsTabs).props.onChange("eupos"));
+  const username = root.root.findAll((node: any) => node.props.accessibilityLabel === "Username" && node.props.onChangeText)[0];
+  expect(username.props.value).toBe("gps-2-user");
+  await act(() => username.props.onChangeText("new-second-user"));
+  expect(mockSecondEupos.update).toHaveBeenCalledWith("username", "new-second-user");
+  mockSecondBluetooth = controller({
+    devices: [secondDevice], connectedDevice: secondDevice, latestLine: "$SECOND",
+    latestFix: fix({ quality: 5 }),
+  });
+  await act(() => root.update(<SettingsScreen />));
+  await openDebug();
+  expect(readings()).toContain("Fix: RTK FLOAT (5)");
+  await act(async () => { await action("Disconnect").props.onPress(); });
+  expect(mockSecondBluetooth.disconnect).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.disconnect).not.toHaveBeenCalled();
+  await act(() => action("GPS 1").props.onPress());
+  expect(readings()).toContain("Test receiver");
+});
+
+it("prevents selecting a Bluetooth device already connected to the other slot", async () => {
+  const firstDevice = controller().devices[0];
+  mockBluetooth = controller({ connectedDevice: firstDevice });
+  mockSecondBluetooth = controller({ devices: [firstDevice] });
+  await render(<SettingsScreen />);
+  await act(() => action("GPS 2").props.onPress());
+  expect(readings()).toContain("No devices loaded");
+  const connectButton = connectAction("settings");
+  expect(connectButton.props.disabled).toBe(true);
+  await act(() => connectButton.props.onPress());
+  expect(mockSecondBluetooth.connectSelected).not.toHaveBeenCalled();
 });

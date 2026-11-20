@@ -22,7 +22,9 @@ jest.mock("react-native-bluetooth-classic", () => ({
 jest.mock("../../lib/gps/ntrip-connection", () => ({ NtripConnection: jest.fn() }));
 jest.mock("../../lib/gps/receiver-profiles", () => ({ configureTopcon: jest.fn() }));
 jest.mock("../../features/gps/bluetooth-permissions", () => ({ ensureBluetoothConnectPermission: jest.fn() }));
-jest.mock("../../features/gps/hooks/use-eupos-settings", () => ({ useEuposSettings: () => ({ settings: mockProviderSettings }) }));
+jest.mock("../../features/gps/hooks/use-eupos-settings", () => ({
+  useEuposSettings: (slot: number) => ({ settings: slot === 2 ? mockSecondProviderSettings : mockProviderSettings }),
+}));
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create> | null;
@@ -30,9 +32,11 @@ let controller!: ReturnType<typeof useBluetoothSerial>;
 let receiver: ReturnType<typeof makeReceiver>;
 let sessions: ReturnType<typeof makeNtrip>[];
 let disconnected: (device: BluetoothDevice) => void;
+let disconnectListeners: ((device: BluetoothDevice) => void)[];
 const disconnectSubscription = { remove: jest.fn() };
 const settings = { ...DEFAULT_EUPOS_SETTINGS, username: "operator", password: "secret" };
 const mockProviderSettings = settings;
+const mockSecondProviderSettings = { ...settings, username: "second-operator", mountpoint: "SECOND" };
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
@@ -104,13 +108,15 @@ beforeEach(() => {
   root = null;
   receiver = makeReceiver();
   sessions = [];
+  disconnectListeners = [];
   jest.mocked(ensureBluetoothConnectPermission).mockReset().mockResolvedValue(true);
   jest.mocked(configureTopcon).mockReset().mockResolvedValue(undefined);
   jest.mocked(BluetoothClassic.connectToDevice).mockReset().mockResolvedValue(device());
   jest.mocked(BluetoothClassic.isBluetoothEnabled).mockReset().mockResolvedValue(true);
   jest.mocked(BluetoothClassic.getBondedDevices).mockReset().mockResolvedValue([device()]);
   jest.mocked(BluetoothClassic.onDeviceDisconnected).mockImplementation((listener) => {
-    disconnected = (value) => listener({ device: value } as unknown as Parameters<typeof listener>[0]);
+    disconnectListeners.push((value) => listener({ device: value } as unknown as Parameters<typeof listener>[0]));
+    disconnected = (value) => disconnectListeners.forEach((callback) => callback(value));
     return disconnectSubscription as ReturnType<typeof BluetoothClassic.onDeviceDisconnected>;
   });
   jest.mocked(NtripConnection).mockImplementation((callbacks) => {
@@ -474,7 +480,7 @@ it("shares one provider-owned session across consumers and preserves it when one
   await act(async () => receiver.emit(gga()));
   expect(first).toBe(second);
   expect(second.connectedDevice).toBe(device());
-  expect(BluetoothClassic.onDeviceDisconnected).toHaveBeenCalledTimes(1);
+  expect(BluetoothClassic.onDeviceDisconnected).toHaveBeenCalledTimes(2);
   expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(1);
   expect(receiver.onDataReceived).toHaveBeenCalledTimes(1);
   expect(sessions).toHaveLength(1);
@@ -485,6 +491,78 @@ it("shares one provider-owned session across consumers and preserves it when one
   await act(() => { root.unmount(); root = null; });
   expect(receiver.disconnect).toHaveBeenCalledTimes(1);
   expect(receiver.subscription.remove).toHaveBeenCalledTimes(1);
-  expect(disconnectSubscription.remove).toHaveBeenCalledTimes(1);
+  expect(disconnectSubscription.remove).toHaveBeenCalledTimes(2);
   expect(sessions[0].stop).toHaveBeenCalledTimes(1);
+});
+
+it("keeps two receivers' positions, GGA updates, caster settings, retries and disconnections independent", async () => {
+  const other = makeReceiver("BB");
+  let gps!: ReturnType<typeof useGps>;
+  function Consumer() { gps = useGps(); return null; }
+  await act(() => { root = create(<GpsProvider><Consumer /></GpsProvider>); });
+  await act(() => {
+    gps.bluetooth.selectReceiverModel("topcon");
+    gps.secondBluetooth.selectReceiverModel("kolida");
+  });
+  jest.mocked(BluetoothClassic.connectToDevice).mockImplementation(async (address) => device(address === "AA" ? receiver : other));
+  await act(async () => {
+    await Promise.all([gps.bluetooth.connectSelected("AA"), gps.secondBluetooth.connectSelected("BB")]);
+  });
+  const firstGga = gga({ 6: "4" });
+  const secondGga = gga({ 6: "5", 2: "4907.038" });
+  await act(async () => { receiver.emit(firstGga); other.emit(secondGga); });
+  expect(sessions).toHaveLength(2);
+  expect(sessions[0].start).toHaveBeenCalledWith(expect.objectContaining({ username: "operator" }), device(), firstGga);
+  expect(sessions[1].start).toHaveBeenCalledWith(expect.objectContaining({ username: "second-operator", mountpoint: "SECOND" }), device(other), secondGga);
+  expect(gps.bluetooth.latestFix?.quality).toBe(4);
+  expect(gps.secondBluetooth.latestFix?.quality).toBe(5);
+  expect(gps.bluetooth.latestFix?.latitude).not.toBe(gps.secondBluetooth.latestFix?.latitude);
+  const updatedGga = gga({ 1: "123520", 6: "4" });
+  await act(async () => other.emit(updatedGga));
+  expect(sessions[1].updateGga).toHaveBeenLastCalledWith(updatedGga);
+  expect(sessions[0].updateGga).not.toHaveBeenCalled();
+  await act(() => sessions[1].emitStatus("error"));
+  await act(async () => { await jest.advanceTimersByTimeAsync(2000); });
+  expect(sessions).toHaveLength(3);
+  expect(sessions[2].start).toHaveBeenCalledWith(expect.anything(), device(other), updatedGga);
+  expect(sessions[0].stop).not.toHaveBeenCalled();
+  await act(() => disconnected(device(other)));
+  expect(gps.secondBluetooth.latestFix).toBeNull();
+  expect(gps.secondBluetooth.connectedDevice).toBeNull();
+  expect(gps.bluetooth.connectedDevice).toBe(device());
+  expect(gps.bluetooth.latestFix?.quality).toBe(4);
+  expect(sessions[2].stop).toHaveBeenCalled();
+  expect(sessions[0].stop).not.toHaveBeenCalled();
+  await act(async () => { await gps.secondBluetooth.connectSelected("BB"); other.emit(secondGga); });
+  await act(() => { root.unmount(); root = null; });
+  expect(receiver.disconnect).toHaveBeenCalledTimes(1);
+  expect(other.disconnect).toHaveBeenCalledTimes(1);
+  expect(sessions[0].stop).toHaveBeenCalledTimes(1);
+  expect(sessions[3].stop).toHaveBeenCalledTimes(1);
+});
+
+it("reserves a device across both slots until a cancelled native connection has finished closing", async () => {
+  let gps!: ReturnType<typeof useGps>;
+  function Consumer() { gps = useGps(); return null; }
+  await act(() => { root = create(<GpsProvider><Consumer /></GpsProvider>); });
+  await act(() => {
+    gps.bluetooth.selectReceiverModel("topcon");
+    gps.secondBluetooth.selectReceiverModel("topcon");
+  });
+  const pending = deferred<BluetoothDevice>();
+  jest.mocked(BluetoothClassic.connectToDevice).mockReturnValueOnce(pending.promise);
+  let connecting!: Promise<void>;
+  await act(async () => { connecting = gps.bluetooth.connectSelected("AA"); });
+  await act(async () => { await gps.secondBluetooth.connectSelected("aa"); });
+  expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(1);
+  expect(gps.secondBluetooth.connectionMessage).toContain("already assigned");
+  await act(async () => { await gps.bluetooth.disconnect(); });
+  await act(async () => { await gps.secondBluetooth.connectSelected("AA"); });
+  expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(1);
+  await act(async () => { pending.resolve(device()); await connecting; });
+  expect(receiver.disconnect).toHaveBeenCalledTimes(1);
+  await act(async () => { await gps.secondBluetooth.connectSelected("AA"); });
+  expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(2);
+  expect(gps.secondBluetooth.connectedDevice).toBe(device());
+  expect(gps.bluetooth.connectedDevice).toBeNull();
 });

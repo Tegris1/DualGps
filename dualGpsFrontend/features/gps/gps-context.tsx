@@ -1,4 +1,5 @@
-import { createContext, type ReactNode, useContext } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
+import { ReceiverAssignments } from "@/features/gps/services/receiver-assignments";
 
 import {
   useBluetoothSerial,
@@ -12,16 +13,21 @@ import {
 type GpsContextValue = {
   bluetooth: BluetoothSerialController;
   eupos: EuposSettingsController;
+  secondBluetooth: BluetoothSerialController;
+  secondEupos: EuposSettingsController;
 };
 
 const GpsContext = createContext<GpsContextValue | undefined>(undefined);
 
 export function GpsProvider({ children }: { children: ReactNode }) {
-  const eupos = useEuposSettings();
-  const bluetooth = useBluetoothSerial(eupos.settings);
+  const [assignments] = useState(() => new ReceiverAssignments());
+  const eupos = useEuposSettings(1);
+  const secondEupos = useEuposSettings(2);
+  const bluetooth = useBluetoothSerial(eupos.settings, assignments);
+  const secondBluetooth = useBluetoothSerial(secondEupos.settings, assignments);
 
   return (
-    <GpsContext.Provider value={{ bluetooth, eupos }}>
+    <GpsContext.Provider value={{ bluetooth, eupos, secondBluetooth, secondEupos }}>
       {children}
     </GpsContext.Provider>
   );

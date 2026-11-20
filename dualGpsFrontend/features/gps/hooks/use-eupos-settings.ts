@@ -7,22 +7,25 @@ import {
   type EuposSaveResult,
 } from "@/features/gps/eupos-settings";
 import { NtripSettingsError } from "@/lib/gps/settings-errors";
-import type { EuposSettings } from "@/features/gps/types";
+import type { EuposSettings, ReceiverSlot } from "@/features/gps/types";
 import { createSecureStorage } from "@/lib/secure-storage";
 
 const STORAGE_KEY = "dualgps.asg-eupos-settings";
 const settingsStorage = createSecureStorage("local");
 
-export function useEuposSettings() {
+export function useEuposSettings(receiverSlot: ReceiverSlot = 1) {
+  const storageKey = receiverSlot === 1 ? STORAGE_KEY : `${STORAGE_KEY}.gps-2`;
   const [settings, setSettings] = useState<EuposSettings>(DEFAULT_EUPOS_SETTINGS);
   const [saveResult, setSaveResult] = useState<EuposSaveResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    void settingsStorage.getItem(STORAGE_KEY)
-      .then((value) => { if (value) setSettings(parseStoredEuposSettings(value)); })
+    let active = true;
+    void settingsStorage.getItem(storageKey)
+      .then((value) => { if (active && value) setSettings(parseStoredEuposSettings(value)); })
       .catch((error) => console.error("Could not restore ASG-EUPOS settings:", error));
-  }, []);
+    return () => { active = false; };
+  }, [storageKey]);
 
   function update<Key extends keyof EuposSettings>(
     key: Key,
@@ -54,7 +57,7 @@ export function useEuposSettings() {
       }
 
       try {
-        await settingsStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        await settingsStorage.setItem(storageKey, JSON.stringify(normalized));
       } catch (cause) {
         setSaveResult({ status: "error", failure: { kind: "persistence", cause } });
         return;

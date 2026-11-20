@@ -1,4 +1,5 @@
 import type { GgaFix } from "@/lib/gps/nmea";
+import type { ReceiverSlot } from "@/features/gps/types";
 
 import type { DashboardSensorViewModel } from "../types";
 
@@ -22,9 +23,9 @@ const qualityLabels: Record<GgaFix["quality"], string> = {
   8: "Symulacja",
 };
 
-export function getDashboardGnssStatus({ connected, isConnecting, fix }: GnssInput, now: number): DashboardSensorViewModel {
+export function getDashboardGnssStatus({ connected, isConnecting, fix }: GnssInput, now: number, receiverSlot: ReceiverSlot = 1): DashboardSensorViewModel {
   const sensor: DashboardSensorViewModel = {
-    id: "gps-1", label: "GPS 1", source: "receiver", statusText: "Niepołączony", tone: "muted",
+    id: `gps-${receiverSlot}`, label: `GPS ${receiverSlot}`, source: "receiver", statusText: "Niepołączony", tone: "muted",
   };
 
   if (isConnecting) return { ...sensor, statusText: "Łączenie…" };

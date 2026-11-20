@@ -4,9 +4,11 @@ import { useDashboardGnss } from "./use-dashboard-gnss";
 
 export function useDashboard(): DashboardViewModel {
   const receiverGnss = useDashboardGnss();
+  const secondReceiverGnss = useDashboardGnss(2);
 
   return getDashboardPresentation({
     primaryGnss: receiverGnss,
-    sourceLabel: "GNSS 1: ODBIORNIK",
+    secondaryGnss: secondReceiverGnss,
+    sourceLabel: "GNSS 1 / 2: ODBIORNIKI",
   });
 }

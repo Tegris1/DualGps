@@ -5,10 +5,11 @@ import { useBluetoothReceiver } from "@/features/gps/hooks/use-bluetooth-receive
 import { useNtripSession } from "@/features/gps/hooks/use-ntrip-session";
 import { useReceiverDiagnostics } from "@/features/gps/hooks/use-receiver-diagnostics";
 import type { EuposSettings, ReceiverReleaseReason } from "@/features/gps/types";
+import type { ReceiverAssignments } from "@/features/gps/services/receiver-assignments";
 
 // The provider creates this composition once. Each part owns its resources;
 // screens continue to consume the same controller through useGps.
-export function useBluetoothSerial(euposSettings: EuposSettings) {
+export function useBluetoothSerial(euposSettings: EuposSettings, assignments?: ReceiverAssignments) {
   const { session, status } = useNtripSession(euposSettings);
   const { acceptData, resetReadings, ...diagnostics } = useReceiverDiagnostics();
 
@@ -26,6 +27,7 @@ export function useBluetoothSerial(euposSettings: EuposSettings) {
     onReady: session.receiverConfigured,
     onData: handleReceiverData,
     onReleased: releaseReceiver,
+    assignments,
   });
 
   return { ...receiver, ...diagnostics, ntripStatus: status };

@@ -3,13 +3,19 @@ import { act } from "react";
 
 import { useDashboardGnss } from "../../features/dashboard/hooks/use-dashboard-gnss";
 import { getDashboardGnssStatus, GNSS_FIX_MAX_AGE_MS } from "../../features/dashboard/presentation/gnss-status";
+import { useDashboard } from "../../features/dashboard/hooks/use-dashboard";
+import { getOfflineDashboardPresentation } from "../../features/dashboard/presentation/dashboard-readings";
+import type { DashboardViewModel } from "../../features/dashboard/types";
 import type { GgaFix } from "../../lib/gps/nmea";
 
-jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth }) }));
+jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({
+  bluetooth: mockBluetooth, secondBluetooth: mockSecondBluetooth,
+}) }));
 
 const now = 1_700_000_000_000;
 const fix: GgaFix = { sentence: "$GPGGA", receivedAt: now, quality: 4, satellites: 8, hdop: 0.9 };
 let mockBluetooth: { connectedDevice: { address: string } | null; isConnecting: boolean; latestFix: GgaFix | null };
+let mockSecondBluetooth: typeof mockBluetooth;
 const { create } = jest.requireActual<{
   create: (element: React.ReactNode) => { update: (element: React.ReactNode) => void; unmount: () => void };
 }>("react-test-renderer");
@@ -31,8 +37,10 @@ it("expires a fix without new messages, accepts a new fix, and clears the timeou
   jest.useFakeTimers();
   jest.setSystemTime(now);
   mockBluetooth = { connectedDevice: { address: "receiver" }, isConnecting: false, latestFix: fix };
+  mockSecondBluetooth = { connectedDevice: { address: "second" }, isConnecting: false, latestFix: null };
   let status!: ReturnType<typeof useDashboardGnss>;
-  function Probe() { status = useDashboardGnss(); return null; }
+  let dashboard!: DashboardViewModel;
+  function Probe() { dashboard = useDashboard(); status = dashboard.gnss[0]; return null; }
   const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
   Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
   const originalError = console.error;
@@ -45,16 +53,27 @@ it("expires a fix without new messages, accepts a new fix, and clears the timeou
   try {
     await act(() => { root = create(<Probe />); });
     expect(status.statusText).toBe("RTK FIX");
-    await act(() => jest.advanceTimersByTime(GNSS_FIX_MAX_AGE_MS - 1));
+    expect(dashboard.gnss[1]).toMatchObject({ id: "gps-2", label: "GPS 2", source: "receiver", statusText: "Czeka na GGA" });
+    await act(() => jest.advanceTimersByTime(5000));
+    mockSecondBluetooth.latestFix = { ...fix, receivedAt: Date.now(), quality: 5 };
+    await act(() => root?.update(<Probe />));
+    await act(() => jest.advanceTimersByTime(GNSS_FIX_MAX_AGE_MS - 5001));
     expect(status.statusText).toBe("RTK FIX");
     await act(() => jest.advanceTimersByTime(1));
     expect(status.statusText).toBe("Dane nieaktualne");
+    expect(dashboard.gnss[1].statusText).toBe("RTK FLOAT");
     mockBluetooth.latestFix = { ...fix, receivedAt: Date.now(), quality: 5 };
     await act(() => root?.update(<Probe />));
     expect(status.statusText).toBe("RTK FLOAT");
     mockBluetooth.connectedDevice = null;
     await act(() => root?.update(<Probe />));
     expect(status.statusText).toBe("Niepołączony");
+    expect(dashboard.gnss[1].statusText).toBe("RTK FLOAT");
+    await act(() => jest.advanceTimersByTime(5000));
+    expect(dashboard.gnss[1].statusText).toBe("Dane nieaktualne");
+    mockSecondBluetooth.connectedDevice = null;
+    await act(() => root?.update(<Probe />));
+    expect(dashboard.gnss[1].statusText).toBe("Niepołączony");
     mockBluetooth.connectedDevice = { address: "receiver" };
     await act(() => root?.update(<Probe />));
     clearSpy.mockClear();
@@ -68,4 +87,13 @@ it("expires a fix without new messages, accepts a new fix, and clears the timeou
     Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", previousActEnvironment);
     jest.useRealTimers();
   }
+});
+
+it("keeps both GNSS demo readings confined to the offline dashboard", () => {
+  const offline = getOfflineDashboardPresentation();
+  expect(offline.sourceLabel).toBe("TRYB OFFLINE");
+  expect(offline.gnss).toEqual([
+    expect.objectContaining({ id: "gps-1", source: "preset", statusText: "RTK FIX" }),
+    expect.objectContaining({ id: "gps-2", source: "preset", statusText: "RTK FIX" }),
+  ]);
 });

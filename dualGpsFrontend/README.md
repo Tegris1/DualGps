@@ -73,14 +73,15 @@ This compiles the native app, installs it, and starts Metro. After the initial b
 
 1. Start the backend, open the app, and register or sign in.
 2. Pair the receivers in Android's Bluetooth settings. The app lists already paired devices.
-3. Open **Settings > ASG-EUPOS**, enter your caster credentials and connection details, and save.
-4. Open **Settings > Bluetooth**, choose the receiver profile, select the paired device, and connect. Grant Bluetooth access if prompted.
-5. Wait for a valid GGA position. With complete caster settings, the app starts NTRIP automatically and forwards corrections to the receiver.
-6. Open **Settings > Debug** to inspect the position, correction stream, RTCM statistics, and serial messages.
+3. Open **Settings**, select **GPS 1**, then open **ASG-EUPOS**, enter its caster credentials and connection details, and save.
+4. In **Bluetooth**, choose the receiver profile, refresh the paired devices, select the first receiver, and connect. Grant Bluetooth access if prompted.
+5. Select **GPS 2** and repeat the caster settings and Bluetooth setup with the second receiver. Each slot saves its own caster settings; GPS 1 keeps the existing saved settings. Use credentials that allow the required simultaneous caster sessions. A Bluetooth device can belong to only one slot, including during connection setup.
+6. Wait for a valid GGA position from each receiver. Each slot starts its own NTRIP connection and forwards that stream's corrections only to its assigned receiver. The online dashboard shows each receiver's actual fix quality, satellites, and HDOP. Missing, disconnected, or stale readings do not fall back to the demo RTK fix; readings expire after 10 seconds without a new GGA.
+7. Open **Debug** with **GPS 1** or **GPS 2** selected to inspect that receiver's position, correction stream, RTCM statistics, and serial messages. Switching slots or settings tabs keeps both connections running.
 
 The initial caster settings are `system.asgeupos.pl`, port `2101`, mountpoint `RTN_VRS_3_1`, with TLS disabled.
 
-The debug console retains the latest 200 entries. Disconnecting Bluetooth also stops the correction connection.
+Each debug console retains the latest 200 entries. Disconnecting one receiver stops its corrections and clears its readings while the other receiver continues running. Signing out releases both connections. Offline presentation mode keeps both GNSS demo readings and opens no hardware or caster connections.
 
 ## Code organization
 
@@ -99,7 +100,7 @@ features/
     hooks/                  Bluetooth, diagnostics, corrections, and settings state
     presentation/           Status summaries, eligibility, and feedback mapping
     services/               NTRIP session readiness and retry lifecycle
-    gps-context.tsx         One shared receiver/correction session
+    gps-context.tsx         Two provider-owned receiver/correction sessions
     eupos-settings.ts       Caster form conversion and saved-value parsing
     bluetooth-permissions.ts  Android permission adapter
     types.ts                Receiver/session and settings models
@@ -111,7 +112,7 @@ lib/gps/                    NMEA, NTRIP, RTCM, and receiver protocol/transport c
 lib/secure-storage.ts       Shared native/browser storage adapter
 ```
 
-[useBluetoothSerial](features/gps/hooks/use-bluetooth-serial.ts) composes receiver, corrections, and diagnostics once inside [GpsProvider](features/gps/gps-context.tsx), preserving the controller consumed by the routes. Screens share that provider session; mounting or unmounting a consumer does not create or stop a native connection.
+[useBluetoothSerial](features/gps/hooks/use-bluetooth-serial.ts) composes receiver, corrections, and diagnostics once per receiver slot inside [GpsProvider](features/gps/gps-context.tsx). Each slot owns an independent controller and NTRIP session. Screens share those controllers; mounting or unmounting a consumer does not create or stop a native connection. Shared address reservations prevent overlapping connections to the same Bluetooth device, including cancelled native attempts that have not finished closing.
 
 - [useBluetoothReceiver](features/gps/hooks/use-bluetooth-receiver.ts) owns paired-device discovery, permissions, receiver configuration, and native subscriptions. Connection/session identities reject cancelled attempts, late native results, and stale listeners.
 - [useReceiverDiagnostics](features/gps/hooks/use-receiver-diagnostics.ts) owns NMEA readings and the last 200 console entries. It returns usable GGA sentences for corrections, and resets readings separately from console history.

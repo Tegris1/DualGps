@@ -15,17 +15,21 @@ import {
 import { useGps } from "@/features/gps/gps-context";
 import { getEuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback";
 import { useReceiverControls } from "@/features/gps/hooks/use-receiver-controls";
+import { ReceiverSelector } from "@/features/gps/components/settings/receiver-selector";
+import type { ReceiverSlot } from "@/features/gps/types";
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const [receiverSlot, setReceiverSlot] = useState<ReceiverSlot>(1);
   const { section } = useLocalSearchParams<{ section?: string }>();
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("bluetooth");
   useFocusEffect(useCallback(() => {
     setActiveSection(section === "debug" || section === "eupos" ? section : "bluetooth");
   }, [section]));
-  const { eupos } = useGps();
-  const receiver = useReceiverControls();
+  const gps = useGps();
+  const eupos = receiverSlot === 1 ? gps.eupos : gps.secondEupos;
+  const receiver = useReceiverControls(receiverSlot);
   const { connection } = receiver;
 
   return (
@@ -35,6 +39,7 @@ export default function SettingsScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <SettingsHeader isGpsOnline={connection.isConnected} onReturn={() => router.navigate("/(tabs)")} />
+        <ReceiverSelector value={receiverSlot} onChange={setReceiverSlot} />
         <SettingsTabs
           activeTab={activeSection}
           onChange={setActiveSection}
@@ -63,6 +68,7 @@ export default function SettingsScreen() {
         )}
         {activeSection === "eupos" && (
           <EuposSettings
+            key={receiverSlot}
             settings={eupos.settings}
             isSaving={eupos.isSaving}
             saveFeedback={getEuposSaveFeedback(eupos.saveResult)}

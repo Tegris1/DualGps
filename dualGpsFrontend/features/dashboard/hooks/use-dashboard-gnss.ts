@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 
 import { useGps } from "@/features/gps/gps-context";
+import type { ReceiverSlot } from "@/features/gps/types";
 
 import { getDashboardGnssStatus, GNSS_FIX_MAX_AGE_MS } from "../presentation/gnss-status";
 
-export function useDashboardGnss() {
-  const { bluetooth } = useGps();
+export function useDashboardGnss(receiverSlot: ReceiverSlot = 1) {
+  const gps = useGps();
+  const bluetooth = receiverSlot === 1 ? gps.bluetooth : gps.secondBluetooth;
   const [now, setNow] = useState(Date.now);
   const address = bluetooth.connectedDevice?.address ?? null;
   const receivedAt = bluetooth.latestFix?.receivedAt ?? null;
@@ -30,5 +32,5 @@ export function useDashboardGnss() {
     return () => subscription.remove();
   }, []);
 
-  return getDashboardGnssStatus({ connected: address !== null, isConnecting, fix: bluetooth.latestFix }, now);
+  return getDashboardGnssStatus({ connected: address !== null, isConnecting, fix: bluetooth.latestFix }, now, receiverSlot);
 }

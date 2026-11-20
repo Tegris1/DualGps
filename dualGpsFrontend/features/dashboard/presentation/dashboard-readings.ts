@@ -16,8 +16,9 @@ export function getPresetSensorPresentation(sensor: DashboardSensor): DashboardS
   };
 }
 
-export function getDashboardPresentation({ primaryGnss, sourceLabel }: {
+export function getDashboardPresentation({ primaryGnss, secondaryGnss, sourceLabel }: {
   primaryGnss: DashboardSensorViewModel;
+  secondaryGnss: DashboardSensorViewModel;
   sourceLabel: string;
 }): DashboardViewModel {
   const data = dashboardPresetData;
@@ -34,13 +35,14 @@ export function getDashboardPresentation({ primaryGnss, sourceLabel }: {
     roll: `${signedNumber(data.rollDegrees, 1)}°`,
     imuSummary: `${data.imus.filter((sensor) => sensor.status === "ok").length}/${data.imus.length} OK`,
     imus: data.imus.map(getPresetSensorPresentation),
-    gnss: [primaryGnss, ...data.gnss.map(getPresetSensorPresentation)],
+    gnss: [primaryGnss, secondaryGnss],
   };
 }
 
 export function getOfflineDashboardPresentation(): DashboardViewModel {
   return getDashboardPresentation({
     primaryGnss: getPresetSensorPresentation(dashboardPrimaryGnssPreset),
+    secondaryGnss: getPresetSensorPresentation(dashboardPresetData.gnss[0]),
     sourceLabel: "TRYB OFFLINE",
   });
 }
