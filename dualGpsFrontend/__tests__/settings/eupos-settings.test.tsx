@@ -2,9 +2,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@j
 import * as SecureStore from "expo-secure-store";
 import { act } from "react";
 
-import { EuposSettings } from "../../components/settings/eupos-settings";
-import { InfoBanner } from "../../components/settings/settings-controls";
-import { useEuposSettings } from "../../hooks/use-eupos-settings";
+import { EuposSettings } from "../../features/gps/components/settings/eupos-settings";
+import { InfoBanner } from "../../components/ui/form-controls";
+import { useEuposSettings } from "../../features/gps/hooks/use-eupos-settings";
 import { getEuposSaveFeedback } from "../../features/gps/presentation/eupos-feedback";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
@@ -161,4 +161,27 @@ it("normalizes port edits in the hook while preserving passwords and TLS values"
   expect(controller.settings.password).toBe(" secret with spaces ");
   expect(controller.settings.useTls).toBe(true);
   expect(writeStorage).not.toHaveBeenCalled();
+});
+
+it("restores and saves GPS 2 caster credentials separately while retaining the existing GPS 1 key", async () => {
+  let first!: ReturnType<typeof useEuposSettings>;
+  let second!: ReturnType<typeof useEuposSettings>;
+  readStorage.mockImplementation(async (key) => JSON.stringify({
+    ...savedSettings, username: key.endsWith("gps-2") ? "second-operator" : "first-operator",
+  }));
+  function Receivers() {
+    first = useEuposSettings(1);
+    second = useEuposSettings(2);
+    return null;
+  }
+  await act(async () => { root = create(<Receivers />); });
+  expect(first.settings.username).toBe("first-operator");
+  expect(second.settings.username).toBe("second-operator");
+  await act(() => second.update("password", "second-secret"));
+  await act(async () => { await second.save(); });
+  expect(writeStorage).toHaveBeenCalledWith("dualgps.asg-eupos-settings.gps-2", expect.any(String));
+  expect(JSON.parse(writeStorage.mock.calls[0][1]).password).toBe("second-secret");
+  expect(first.settings.password).toBe(savedSettings.password);
+  expect(first.saveResult).toBeNull();
+  expect(second.saveResult).toEqual({ status: "success" });
 });

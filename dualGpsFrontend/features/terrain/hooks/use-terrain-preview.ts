@@ -6,6 +6,8 @@ const ROTATION_STEP = Math.PI / 8;
 const ZOOM_STEP = 1.2;
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 3;
+const MIN_ELEVATION = Math.PI / 36;
+const MAX_ELEVATION = Math.PI / 2 - 0.001;
 
 export function useTerrainPreview(currentTerrainId: string | null, targetTerrainId: string | null) {
   const [view, setView] = useState(DEFAULT_VIEW);
@@ -17,6 +19,15 @@ export function useTerrainPreview(currentTerrainId: string | null, targetTerrain
   // The scene's loading/disposal effect depends on this callback. Keep it stable
   // while camera and visibility controls change for the same model pair.
   const onLoaded = useCallback(() => setLoadedPair(modelPair), [modelPair]);
+  const onReload = useCallback(() => setLoadedPair(null), []);
+  const onOrbit = useCallback((yaw: number, elevation: number) => {
+    if (!Number.isFinite(yaw) || !Number.isFinite(elevation)) return;
+    setView((value) => ({
+      ...value,
+      yaw: value.yaw + yaw,
+      elevation: Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, value.elevation + elevation)),
+    }));
+  }, []);
 
   function rotateLeft() {
     setView((value) => ({ ...value, yaw: value.yaw - ROTATION_STEP }));
@@ -41,6 +52,8 @@ export function useTerrainPreview(currentTerrainId: string | null, targetTerrain
     showTarget,
     loaded,
     onLoaded,
+    onReload,
+    onOrbit,
     onCurrentVisibilityChange: setShowCurrent,
     onTargetVisibilityChange: setShowTarget,
     onRotateLeft: rotateLeft,

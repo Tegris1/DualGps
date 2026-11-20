@@ -1,29 +1,45 @@
 import { afterAll, afterEach, beforeAll, expect, it, jest } from "@jest/globals";
 import { act, type ReactElement } from "react";
-import { Button, Text } from "react-native";
+import { Text } from "react-native";
 import type { BluetoothDevice } from "react-native-bluetooth-classic";
 
-import ConnectionSetup from "../../app/(tabs)/connection_setup";
 import SettingsScreen from "../../app/(tabs)/settings";
-import { GnssSolutionDetails } from "../../components/gps/gnss-solution-details";
-import { ReceiverDeviceList } from "../../components/gps/receiver-device-list";
-import { ReceiverProfileSelector } from "../../components/gps/receiver-profile-selector";
-import { SettingsTabs } from "../../components/settings/settings-tabs";
-import { InfoBanner } from "../../components/settings/settings-controls";
-import type { BluetoothSerialController } from "../../hooks/use-bluetooth-serial";
-import type { EuposSettingsController } from "../../hooks/use-eupos-settings";
-import { DEFAULT_EUPOS_SETTINGS } from "../../lib/gps/eupos-settings";
+import { GnssSolutionDetails } from "../../features/gps/components/gnss-solution-details";
+import { ReceiverDeviceList } from "../../features/gps/components/receiver-device-list";
+import { ReceiverProfileSelector } from "../../features/gps/components/receiver-profile-selector";
+import { SettingsTabs } from "../../features/gps/components/settings/settings-tabs";
+import { InfoBanner } from "../../components/ui/form-controls";
+import type { BluetoothSerialController } from "../../features/gps/hooks/use-bluetooth-serial";
+import type { EuposSettingsController } from "../../features/gps/hooks/use-eupos-settings";
+import { DEFAULT_EUPOS_SETTINGS } from "../../features/gps/eupos-settings";
 import type { GgaFix } from "../../lib/gps/nmea";
+import type { ArmImuController } from "../../features/imu/use-arm-imus";
+import { imuPacket, IMU_TEST_UUIDS } from "../fixtures/imu";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
-jest.mock("../../lib/gps-context", () => ({ useGps: () => ({ bluetooth: mockBluetooth, eupos: mockEupos }) }));
+jest.mock("expo-router", () => ({
+  useRouter: () => mockRouter,
+  useLocalSearchParams: () => ({}),
+  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
+}));
+jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({
+  bluetooth: mockBluetooth, eupos: mockEupos, secondBluetooth: mockSecondBluetooth, secondEupos: mockSecondEupos,
+  imus: mockImus,
+}) }));
 jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
 
 const { create } = require("react-test-renderer");
+const mockRouter = { navigate: jest.fn() };
 let root: ReturnType<typeof create>;
 let mockBluetooth: BluetoothSerialController;
+let mockSecondBluetooth: BluetoothSerialController;
+let mockImus: ArmImuController;
 const mockEupos: EuposSettingsController = {
   settings: DEFAULT_EUPOS_SETTINGS, isSaving: false, saveResult: null,
+  update: jest.fn(), save: jest.fn(async () => {}),
+};
+const mockSecondEupos: EuposSettingsController = {
+  ...mockEupos, settings: { ...DEFAULT_EUPOS_SETTINGS, username: "gps-2-user" },
   update: jest.fn(), save: jest.fn(async () => {}),
 };
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
@@ -69,8 +85,7 @@ async function openDebug() {
   await act(() => root.root.findByType(SettingsTabs).props.onChange("debug"));
 }
 
-function connectAction(screen: "setup" | "settings" | "debug") {
-  if (screen === "setup") return root.root.findByType(ReceiverDeviceList);
+function connectAction(screen: "settings" | "debug") {
   if (screen === "debug") return action(mockBluetooth.isConnecting ? "Connecting…" : "Connect");
   return root.root.find((node: any) => node.props.icon === "bluetooth-connected" && typeof node.props.onPress === "function");
 }
@@ -159,25 +174,21 @@ it("shows empty receivers, unnamed devices, selection, connection badges, and de
   expect(action("Unnamed receiver, BB").props.disabled).toBe(true);
 });
 
-it.each(["setup", "settings"] as const)("preserves the %s screen's device action", async (screen) => {
+it("preserves settings device selection and its separate Connect action", async () => {
   mockBluetooth = controller();
-  await render(screen === "setup" ? <ConnectionSetup /> : <SettingsScreen />);
+  await render(<SettingsScreen />);
   await act(() => action("Test receiver, AA").props.onPress());
   expect(mockBluetooth.selectDevice).toHaveBeenCalledWith("AA");
-  if (screen === "setup") {
-    expect(mockBluetooth.connectSelected).toHaveBeenCalledWith("AA");
-  } else {
-    expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
-    const connectButton = root.root.find((node: any) => node.props.label === "Connect selected device");
-    await act(() => connectButton.props.onPress());
-    expect(mockBluetooth.connectSelected).toHaveBeenCalledWith();
-  }
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  const connectButton = root.root.find((node: any) => node.props.label === "Connect selected device");
+  await act(() => connectButton.props.onPress());
+  expect(mockBluetooth.connectSelected).toHaveBeenCalledWith();
 });
 
-it("requires a profile before setup connects and disables profile changes on a connected receiver", async () => {
+it("requires a profile before settings connects and disables profile changes on a connected receiver", async () => {
   mockBluetooth = controller({ receiverModel: null });
-  await render(<ConnectionSetup />);
-  expect(action("Test receiver, AA").props.disabled).toBe(true);
+  await render(<SettingsScreen />);
+  expect(connectAction("settings").props.disabled).toBe(true);
   await act(() => action("Topcon").props.onPress());
   expect(mockBluetooth.selectReceiverModel).toHaveBeenCalledWith("topcon");
   const device = mockBluetooth.devices[0];
@@ -187,39 +198,43 @@ it("requires a profile before setup connects and disables profile changes on a c
   expect(action("Kolida").props.disabled).toBe(true);
 });
 
-it("uses the same fallback readings in setup and the debug console, with UTC available in setup", async () => {
-  mockBluetooth = controller({ latestFix: fix({ utcTime: "123456" }), gsaDop: { receivedAt: 0, hdop: 1.25 } });
-  await render(<ConnectionSetup />);
-  expect(readings()).toEqual(expect.arrayContaining(["HDOP: 1.25", "UTC: 123456"]));
-  await act(() => root.update(<SettingsScreen />));
-  await openDebug();
-  expect(readings()).toContain("HDOP: 1.25");
-  expect(readings()).not.toContain("UTC: 123456");
+it("returns to the dashboard from settings", async () => {
+  mockRouter.navigate.mockClear();
+  mockBluetooth = controller();
+  await render(<SettingsScreen />);
+  await act(() => action("Powrót do pulpitu").props.onPress());
+  expect(mockRouter.navigate).toHaveBeenLastCalledWith("/(tabs)");
 });
 
-it.each(["setup", "settings", "debug"] as const)("blocks %s connections without a profile, including direct callback invocation", async (screen) => {
+it("uses fallback readings in the debug console", async () => {
+  mockBluetooth = controller({ latestFix: fix({ utcTime: "123456" }), gsaDop: { receivedAt: 0, hdop: 1.25 } });
+  await render(<SettingsScreen />);
+  await openDebug();
+  expect(readings()).toContain("HDOP: 1.25");
+  expect(readings()).toContain("UTC: 123456");
+});
+
+it.each(["settings", "debug"] as const)("blocks %s connections without a profile, including direct callback invocation", async (screen) => {
   mockBluetooth = controller({ receiverModel: null });
-  await render(screen === "setup" ? <ConnectionSetup /> : <SettingsScreen />);
+  await render(<SettingsScreen />);
   if (screen === "debug") await openDebug();
   const control = connectAction(screen);
   expect(control.props.disabled).toBe(true);
   await act(async () => {
-    if (screen === "setup") await control.props.onSelect("AA");
-    else await control.props.onPress();
+    await control.props.onPress();
   });
   expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
   expect(mockBluetooth.selectDevice).not.toHaveBeenCalled();
 });
 
-it.each(["setup", "settings", "debug"] as const)("blocks %s connections while another attempt is pending", async (screen) => {
+it.each(["settings", "debug"] as const)("blocks %s connections while another attempt is pending", async (screen) => {
   mockBluetooth = controller({ isConnecting: true });
-  await render(screen === "setup" ? <ConnectionSetup /> : <SettingsScreen />);
+  await render(<SettingsScreen />);
   if (screen === "debug") await openDebug();
   const control = connectAction(screen);
   expect(control.props.disabled).toBe(true);
   await act(async () => {
-    if (screen === "setup") await control.props.onSelect("AA");
-    else await control.props.onPress();
+    await control.props.onPress();
   });
   expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
 });
@@ -237,14 +252,6 @@ it("locks profile and device selection during connection setup", async () => {
   expect(mockBluetooth.selectDevice).not.toHaveBeenCalled();
 });
 
-it("keeps setup Disconnect available to cancel a pending connection", async () => {
-  mockBluetooth = controller({ isConnecting: true });
-  await render(<ConnectionSetup />);
-  const disconnect = root.root.findAllByType(Button).find((node: any) => node.props.title === "Disconnect");
-  expect(disconnect.props.disabled).toBe(false);
-  await act(async () => { await disconnect.props.onPress(); });
-  expect(mockBluetooth.disconnect).toHaveBeenCalledTimes(1);
-});
 
 it("connects from debug when eligible, switches to disconnect when online, and clears the console", async () => {
   mockBluetooth = controller();
@@ -266,16 +273,14 @@ it("connects from debug when eligible, switches to disconnect when online, and c
   expect(mockBluetooth.clearConsole).toHaveBeenCalledTimes(1);
 });
 
-it("uses the same NTRIP summary in setup, settings banners, and debug diagnostics", async () => {
+it("uses the same NTRIP summary in settings banners and debug diagnostics", async () => {
   const device = controller().devices[0];
   mockBluetooth = controller({ connectedDevice: device, ntripStatus: {
     state: "streaming", message: "Corrections active.", bytesReceived: 1024, bytesSentToReceiver: 512,
     rtcm: { validFrames: 3, invalidFrames: 0 },
   } });
   const summary = "Corrections active. 3 valid RTCM frames, 512 bytes forwarded.";
-  await render(<ConnectionSetup />);
-  expect(readings()).toContain(`NTRIP: ${summary}`);
-  await act(() => root.update(<SettingsScreen />));
+  await render(<SettingsScreen />);
   expect(root.root.findAllByType(InfoBanner).some((node: any) => node.props.message === summary && node.props.variant === "success")).toBe(true);
   await openDebug();
   expect(readings()).toContain(`Message: ${summary}`);
@@ -292,4 +297,88 @@ it("renders NTRIP failures as error banners and hides correction banners when Bl
   mockBluetooth = controller();
   await act(() => root.update(<SettingsScreen />));
   expect(root.root.findAllByType(InfoBanner)).toHaveLength(1);
+});
+
+it("switches Bluetooth actions, diagnostics and caster settings to GPS 2 without affecting GPS 1", async () => {
+  mockBluetooth = controller({ connectedDevice: controller().devices[0] });
+  const secondDevice = { address: "BB", name: "Second receiver" } as BluetoothDevice;
+  mockSecondBluetooth = controller({ devices: [secondDevice], selectedAddress: "BB", selectedDevice: secondDevice });
+  await render(<SettingsScreen />);
+  await act(() => action("GPS 2").props.onPress());
+  expect(action("GPS 2").props.accessibilityState.checked).toBe(true);
+  expect(readings()).toContain("Second receiver");
+  await act(async () => { await connectAction("settings").props.onPress(); });
+  expect(mockSecondBluetooth.connectSelected).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.disconnect).not.toHaveBeenCalled();
+  await act(() => root.root.findByType(SettingsTabs).props.onChange("eupos"));
+  const username = root.root.findAll((node: any) => node.props.accessibilityLabel === "Username" && node.props.onChangeText)[0];
+  expect(username.props.value).toBe("gps-2-user");
+  await act(() => username.props.onChangeText("new-second-user"));
+  expect(mockSecondEupos.update).toHaveBeenCalledWith("username", "new-second-user");
+  mockSecondBluetooth = controller({
+    devices: [secondDevice], connectedDevice: secondDevice, latestLine: "$SECOND",
+    latestFix: fix({ quality: 5 }),
+  });
+  await act(() => root.update(<SettingsScreen />));
+  await openDebug();
+  expect(readings()).toContain("Fix: RTK FLOAT (5)");
+  await act(async () => { await action("Disconnect").props.onPress(); });
+  expect(mockSecondBluetooth.disconnect).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.disconnect).not.toHaveBeenCalled();
+  await act(() => action("GPS 1").props.onPress());
+  expect(readings()).toContain("Test receiver");
+});
+
+it("prevents selecting a Bluetooth device already connected to the other slot", async () => {
+  const firstDevice = controller().devices[0];
+  mockBluetooth = controller({ connectedDevice: firstDevice });
+  mockSecondBluetooth = controller({ devices: [firstDevice] });
+  await render(<SettingsScreen />);
+  await act(() => action("GPS 2").props.onPress());
+  expect(readings()).toContain("No devices loaded");
+  const connectButton = connectAction("settings");
+  expect(connectButton.props.disabled).toBe(true);
+  await act(() => connectButton.props.onPress());
+  expect(mockSecondBluetooth.connectSelected).not.toHaveBeenCalled();
+});
+
+it("connects IMUs by section and keeps their actions separate from GNSS profiles", async () => {
+  mockBluetooth = controller();
+  const boards = (["boom", "arm", "bucket"] as const).map((id, index) => ({
+    address: `IMU${index}`, name: `DualGPS-IMU-${IMU_TEST_UUIDS[id]}`,
+  } as BluetoothDevice));
+  mockImus = { sensors: (["boom", "arm", "bucket"] as const).map((section, index) => {
+    const device = boards[index];
+    return { ...controller({ devices: boards, selectedAddress: device.address, selectedDevice: device }),
+      section, fresh: false, reading: null, error: null, binding: null, assignmentReady: true,
+      clearAssignment: jest.fn(async () => {}) };
+  }), pose: null, assignmentError: null };
+  await render(<SettingsScreen />);
+  await act(() => root.root.findByType(SettingsTabs).props.onChange("imu"));
+  expect(readings()).toContain("Boom / Wysięgnik");
+  await act(() => action(`${boards[2].name}, ${boards[2].address}`).props.onPress());
+  expect(mockImus.sensors[0].selectDevice).toHaveBeenCalledWith("IMU2");
+  const connect = () => root.root.find((node: any) => node.props.label === "Assign and connect IMU");
+  await act(() => connect().props.onPress());
+  expect(mockImus.sensors[0].connectSelected).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  expect(mockImus.sensors[0].selectReceiverModel).not.toHaveBeenCalled();
+  mockImus.sensors[0].binding = { uuid: IMU_TEST_UUIDS.bucket, address: "IMU2" };
+  await act(() => root.update(<SettingsScreen />));
+  const clearAssignment = root.root.find((node: any) => node.props.label === "Clear assignment");
+  await act(() => clearAssignment.props.onPress());
+  expect(mockImus.sensors[0].clearAssignment).toHaveBeenCalledTimes(1);
+  await act(() => action("arm").props.onPress());
+  expect(readings()).toContain("Arm / Ramię");
+  expect(readings()).not.toContain(boards[2].name);
+  await act(() => connect().props.onPress());
+  expect(mockImus.sensors[1].connectSelected).toHaveBeenCalledTimes(1);
+  mockImus.sensors[1] = { ...mockImus.sensors[1], connectedDevice: mockImus.sensors[1].devices[0], fresh: true,
+    reading: { ...imuPacket("arm", { status: "calibrating", calibrated: false, angle: null }), receivedAt: Date.now() } };
+  await act(() => root.update(<SettingsScreen />));
+  expect(readings()).toContain("Keep the arm still while the gyroscope calibrates");
+  const disconnect = root.root.find((node: any) => node.props.label === "Disconnect IMU");
+  await act(() => disconnect.props.onPress());
+  expect(mockImus.sensors[1].disconnect).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.disconnect).not.toHaveBeenCalled();
 });

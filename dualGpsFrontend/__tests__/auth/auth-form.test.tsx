@@ -3,11 +3,11 @@ import { act } from "react";
 import { Button, Text, TextInput } from "react-native-paper";
 
 import AuthScreen from "../../app/auth";
-import { AuthApiError } from "../../api/auth-errors";
-import type { AuthFailure } from "../../lib/auth-errors";
-import { useAuth } from "../../lib/auth-context";
+import { AuthApiError } from "../../features/auth/api/auth-errors";
+import type { AuthFailure } from "../../features/auth/errors";
+import { useAuth } from "../../features/auth/auth-context";
 
-jest.mock("../../lib/auth-context", () => ({ useAuth: jest.fn() }));
+jest.mock("../../features/auth/auth-context", () => ({ useAuth: jest.fn() }));
 jest.mock("react-native-paper", () => ({
   Button: "PaperButton", Text: "PaperText", TextInput: "PaperTextInput",
   useTheme: () => ({ colors: { error: "red" } }),

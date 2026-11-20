@@ -1,11 +1,14 @@
+/* eslint-disable react/no-unknown-property -- React Three Fiber defines its own JSX properties. */
 import { Canvas, useLoader, useThree } from "@react-three/fiber/native";
-import { Suspense, useEffect, useLayoutEffect, useMemo } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { PerspectiveCamera } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { getPreviewCamera, preparePreviewModels, type PreviewView } from "./preview-models";
 import type { Terrain } from "./terrain-catalog";
 import { createExcavator } from "./excavator-model";
+import { getBucketCrossSections, type BucketCrossSections } from "./terrain-cross-section";
+import type { ArmAngles } from "@/lib/imu/imu-protocol";
 
 // GLTFLoader probes browser versions even with native texture loading. React
 // Native exposes navigator without userAgent; identify it without claiming a browser.
@@ -18,24 +21,29 @@ export function clearTerrainPreviewCache(current: Terrain, target: Terrain) {
 }
 
 type SceneProps = {
+  armPose?: ArmAngles | null;
   currentTerrain: Terrain;
   targetTerrain: Terrain;
   view: PreviewView;
   showCurrent: boolean;
   showTarget: boolean;
   onLoaded: () => void;
+  onCrossSection?: (section: BucketCrossSections | null) => void;
 };
 
-function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget, onLoaded }: SceneProps) {
+function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget, armPose, onLoaded, onCrossSection }: SceneProps) {
   const [current, target] = useLoader(GLTFLoader, [currentTerrain.asset, targetTerrain.asset]);
   const models = useMemo(
     () => {
       const terrain = preparePreviewModels(current.scene, target.scene);
+      let excavator: ReturnType<typeof createExcavator> | undefined;
       try {
-        const excavator = createExcavator(terrain.current);
+        excavator = createExcavator(terrain.current);
         terrain.bounds.expandByObject(excavator.model).getBoundingSphere(terrain.sphere);
-        return { ...terrain, excavator, dispose: () => { excavator.dispose(); terrain.dispose(); } };
+        const machine = excavator;
+        return { ...terrain, excavator: machine, dispose: () => { machine.dispose(); terrain.dispose(); } };
       } catch (error) {
+        excavator?.dispose();
         terrain.dispose();
         throw error;
       }
@@ -43,6 +51,13 @@ function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget
     [current.scene, target.scene],
   );
   const { camera, size, invalidate } = useThree();
+  const poseRevision = useRef(0);
+  const liveArm = armPose !== undefined;
+  useLayoutEffect(() => {
+    models.excavator.setArmAngles(armPose);
+    poseRevision.current++;
+    invalidate();
+  }, [armPose, models, invalidate]);
 
   useLayoutEffect(() => {
     if (!(camera instanceof PerspectiveCamera)) return;
@@ -55,10 +70,25 @@ function Terrains({ currentTerrain, targetTerrain, view, showCurrent, showTarget
     invalidate();
   }, [camera, invalidate, models, size.width, size.height, view]);
 
+  useEffect(() => () => models.dispose(), [models]);
+
   useEffect(() => {
+    let published = -1;
+    const publish = () => {
+      if (published === poseRevision.current) return;
+      published = poseRevision.current;
+      onCrossSection?.(models.excavator.arm.visible
+        ? getBucketCrossSections(models.current, models.target, models.excavator.bucketTip, models.excavator.model)
+        : null);
+    };
+    publish();
     onLoaded();
-    return models.dispose;
-  }, [models, onLoaded]);
+    // Updating sensor angles does not reload terrain. Triangle intersections
+    // are limited to 5 Hz, independently of the 20 Hz arm visualization.
+    if (!liveArm) return;
+    const timer = setInterval(publish, 200);
+    return () => clearInterval(timer);
+  }, [models, onLoaded, onCrossSection, liveArm]);
 
   return (
     <>

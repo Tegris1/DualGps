@@ -1,43 +1,23 @@
-import { useAuth } from "@/lib/auth-context";
-import { Link } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
-import { Button } from "react-native-paper";
+import { useRouter } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
+
+import { useAuth } from "@/features/auth/auth-context";
+import { DashboardScreen } from "@/features/dashboard/containers/dashboard-screen";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 
 export default function Index() {
   const { signOut } = useAuth();
+  const router = useRouter();
+  const data = useDashboard();
+  const isActive = useIsFocused();
+
   return (
-    <View style={styles.view}>
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-      <Link href="/auth" style={styles.navigationButton}>
-        <Text>Login</Text>
-      </Link>
-      <Button
-        mode="text"
-        onPress={() => {
-          signOut();
-        }}
-        icon="logout"
-      >
-        Sign Out
-      </Button>
-    </View>
+    <DashboardScreen
+      data={data}
+      isActive={isActive}
+      onOpenConnectionSetup={() => router.navigate({ pathname: "/(tabs)/settings", params: { section: "debug" } })}
+      onOpenSettings={() => router.navigate({ pathname: "/(tabs)/settings", params: { section: "bluetooth" } })}
+      onSignOut={() => { void signOut(); }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  view: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  navigationButton: {
-    marginTop: 20,
-    borderWidth: 2,
-    borderColor: "blue",
-    width: 100,
-    height: 30,
-    textAlign: "center",
-    borderRadius: 5,
-    verticalAlign: "middle",
-  },
-});

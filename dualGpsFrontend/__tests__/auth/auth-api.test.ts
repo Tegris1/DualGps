@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, expect, it, jest } from "@jest/globals";
 
-import { authApi, AuthApiError } from "../../api/authApi";
+import { authApi, AuthApiError } from "../../features/auth/api/auth-api";
 
 jest.mock("expo-device", () => ({ isDevice: true }));
 jest.mock("react-native", () => ({ Platform: { OS: "android" } }));

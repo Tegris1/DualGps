@@ -105,6 +105,47 @@ describe('NTRIP connection lifecycle', () => {
     expect(write).toHaveBeenCalledWith(payload);
   });
 
+  it('routes simultaneous correction streams and periodic GGA to their own receivers', async () => {
+    await startStreaming();
+    const secondSocket = createSocket();
+    let secondConnected = () => {};
+    const secondWrite = jest.fn<(data: Buffer) => Promise<boolean>>().mockResolvedValue(true);
+    const secondReceiver = { write: secondWrite } as unknown as BluetoothDevice;
+    const secondConnection = new NtripConnection();
+    jest.mocked(TcpSocket.createConnection).mockImplementationOnce((_options, callback) => {
+      secondConnected = callback;
+      return secondSocket as unknown as ReturnType<typeof TcpSocket.createConnection>;
+    });
+    const secondGga = gga({ 2: '4907.038' });
+    try {
+      const started = secondConnection.start({ ...settings, username: 'second-user' }, secondReceiver, secondGga);
+      secondConnected();
+      secondSocket.emit('data', headers);
+      await started;
+      const firstPayload = Buffer.from([0xd3, 0, 1]);
+      const secondPayload = Buffer.from([0xd3, 0, 2]);
+      socket.emit('data', firstPayload);
+      secondSocket.emit('data', secondPayload);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(write).toHaveBeenCalledWith(firstPayload);
+      expect(secondWrite).toHaveBeenCalledTimes(1);
+      expect(secondWrite).toHaveBeenCalledWith(secondPayload);
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(socket.write).toHaveBeenLastCalledWith(`${gga()}\r\n`, 'ascii', expect.any(Function));
+      expect(secondSocket.write).toHaveBeenLastCalledWith(`${secondGga}\r\n`, 'ascii', expect.any(Function));
+      secondConnection.stop(false);
+      socket.emit('data', firstPayload);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(write).toHaveBeenCalledTimes(2);
+      expect(secondWrite).toHaveBeenCalledTimes(1);
+      expect(connection.isRunning()).toBe(true);
+      expect(socket.destroy).not.toHaveBeenCalled();
+    } finally {
+      secondConnection.stop(false);
+    }
+  });
+
   it('decodes headers when the runtime returns plain Uint8Arrays from Buffer.subarray', async () => {
     const prototype = Buffer.prototype as { subarray: (start?: number, end?: number) => Buffer };
     const subarray = jest.spyOn(prototype, 'subarray').mockImplementation(function (

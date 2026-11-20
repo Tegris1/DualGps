@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -10,30 +11,42 @@ import {
   SettingsTabs,
   styles,
   type SettingsSection,
-} from "@/components/settings";
-import { useGps } from "@/lib/gps-context";
+} from "@/features/gps/components/settings";
+import { useGps } from "@/features/gps/gps-context";
 import { getEuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback";
 import { useReceiverControls } from "@/features/gps/hooks/use-receiver-controls";
+import { ReceiverSelector } from "@/features/gps/components/settings/receiver-selector";
+import type { ReceiverSlot } from "@/features/gps/types";
+import { ImuSettings } from "@/features/imu/imu-settings";
 
 export default function SettingsScreen() {
+  const router = useRouter();
+  const [receiverSlot, setReceiverSlot] = useState<ReceiverSlot>(1);
+  const { section } = useLocalSearchParams<{ section?: string }>();
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("bluetooth");
-  const { eupos } = useGps();
-  const receiver = useReceiverControls();
+  useFocusEffect(useCallback(() => {
+    setActiveSection(section === "debug" || section === "eupos" || section === "imu" ? section : "bluetooth");
+  }, [section]));
+  const gps = useGps();
+  const eupos = receiverSlot === 1 ? gps.eupos : gps.secondEupos;
+  const receiver = useReceiverControls(receiverSlot);
   const { connection } = receiver;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <SettingsHeader isGpsOnline={connection.isConnected} />
+        <SettingsHeader isGpsOnline={connection.isConnected} onReturn={() => router.navigate("/(tabs)")} />
         <SettingsTabs
           activeTab={activeSection}
           onChange={setActiveSection}
         />
+        {activeSection !== "imu" && <ReceiverSelector value={receiverSlot} onChange={setReceiverSlot} />}
 
+        {activeSection === "imu" && <ImuSettings controller={gps.imus} />}
         {activeSection === "bluetooth" && (
           <BluetoothSettings
             devices={receiver.devices}
@@ -57,6 +70,7 @@ export default function SettingsScreen() {
         )}
         {activeSection === "eupos" && (
           <EuposSettings
+            key={receiverSlot}
             settings={eupos.settings}
             isSaving={eupos.isSaving}
             saveFeedback={getEuposSaveFeedback(eupos.saveResult)}
@@ -76,6 +90,7 @@ export default function SettingsScreen() {
             ntripDetails={receiver.ntrip.details}
             consoleEntries={receiver.consoleEntries}
             onConnectionAction={receiver.onConnectionAction}
+            onCancelConnection={connection.canDisconnect && !connection.isConnected ? receiver.onDisconnect : undefined}
             onClearConsole={receiver.onClearConsole}
             onSelectDevice={() => setActiveSection("bluetooth")}
           />

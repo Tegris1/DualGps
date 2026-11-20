@@ -3,8 +3,9 @@ import { NativeModules } from "react-native";
 import BluetoothClassic, { type BluetoothDevice, type BluetoothEventSubscription } from "react-native-bluetooth-classic";
 
 import { configureTopcon, type ReceiverModel } from "@/lib/gps/receiver-profiles";
-import type { ReceiverReleaseReason } from "@/lib/gps/types";
-import { ensureBluetoothConnectPermission } from "@/utils/bluetoothPermisisons";
+import type { ReceiverReleaseReason } from "@/features/gps/types";
+import { ensureBluetoothConnectPermission } from "@/features/gps/bluetooth-permissions";
+import type { ReceiverAssignments } from "@/features/gps/services/receiver-assignments";
 
 const BLUETOOTH_MODULE_UNAVAILABLE = "Bluetooth Classic is unavailable on this device.";
 const hasBluetoothNativeModule = NativeModules.RNBluetoothClassic != null;
@@ -14,9 +15,21 @@ type ReceiverLifecycleCallbacks = {
   onReady: (device: BluetoothDevice) => void;
   onData: (data: string, device: BluetoothDevice) => void;
   onReleased: (reason: ReceiverReleaseReason) => void;
+  assignments?: ReceiverAssignments;
+  configureDevice?: (device: BluetoothDevice, isActive: () => boolean) => Promise<void>;
 };
 
-export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }: ReceiverLifecycleCallbacks) {
+type ReleasedReceiver = { device: BluetoothDevice | null; releaseAddress: (() => void) | null };
+
+async function disconnectReceiver({ device, releaseAddress }: ReleasedReceiver) {
+  try {
+    await device?.disconnect();
+  } finally {
+    releaseAddress?.();
+  }
+}
+
+export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased, assignments, configureDevice }: ReceiverLifecycleCallbacks) {
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [connectedDevice, setConnectedDevice] = useState<BluetoothDevice | null>(null);
@@ -26,6 +39,7 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
   const [receiverModel, setReceiverModel] = useState<ReceiverModel | null>(null);
 
   const connectionRef = useRef<BluetoothDevice | null>(null);
+  const releaseAddressRef = useRef<(() => void) | null>(null);
   const dataListenerRef = useRef<BluetoothEventSubscription | null>(null);
   const mountedRef = useRef(false);
   const connectionAttemptRef = useRef<object | null>(null);
@@ -38,6 +52,8 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
     receiverSessionRef.current = null;
     const device = connectionRef.current;
     connectionRef.current = null;
+    const releaseAddress = releaseAddressRef.current;
+    releaseAddressRef.current = null;
     const listener = dataListenerRef.current;
     dataListenerRef.current = null;
 
@@ -47,7 +63,7 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
       setConnectedDevice(null);
       if (cancelPendingConnection) setIsConnecting(false);
     }
-    return device;
+    return { device, releaseAddress };
   }, [onReleased]);
 
   useEffect(() => {
@@ -60,7 +76,7 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
       try {
         disconnectSubscription = BluetoothClassic.onDeviceDisconnected(({ device }) => {
           if (!mountedRef.current || connectionRef.current?.address !== device.address) return;
-          releaseReceiverSession("unexpected-disconnect");
+          releaseReceiverSession("unexpected-disconnect").releaseAddress?.();
           setConnectionMessage("Bluetooth receiver disconnected unexpectedly.");
         });
       } catch (error) {
@@ -71,8 +87,8 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
     return () => {
       mountedRef.current = false;
       disconnectSubscription?.remove();
-      const device = releaseReceiverSession("unmounted");
-      void device?.disconnect().catch(() => undefined);
+      const released = releaseReceiverSession("unmounted");
+      void disconnectReceiver(released).catch(() => undefined);
     };
   }, [releaseReceiverSession]);
 
@@ -108,12 +124,12 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
   }
 
   async function disconnect() {
-    const device = releaseReceiverSession("disconnected");
+    const released = releaseReceiverSession("disconnected");
     const operation = {};
     latestOperationRef.current = operation;
     if (mountedRef.current) setConnectionMessage("Device disconnected.");
     try {
-      await device?.disconnect();
+      await disconnectReceiver(released);
     } catch (error) {
       if (mountedRef.current && latestOperationRef.current === operation) {
         setConnectionMessage("Could not disconnect: " + String(error));
@@ -126,9 +142,15 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
       setConnectionMessage(BLUETOOTH_MODULE_UNAVAILABLE);
       return;
     }
-    if (!mountedRef.current || !address || !receiverModel || connectionAttemptRef.current) return;
+    if (!mountedRef.current || !address || (!receiverModel && !configureDevice) || connectionAttemptRef.current) return;
     if (connectionRef.current?.address === address) return;
 
+    const releaseAddress = assignments?.reserve(address);
+    if (assignments && !releaseAddress) {
+      setConnectionMessage("This device is already assigned to another receiver or IMU.");
+      return;
+    }
+    let reservationTransferred = false;
     const attempt = {};
     connectionAttemptRef.current = attempt;
     latestOperationRef.current = attempt;
@@ -146,8 +168,8 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
       }
 
       // Keep this attempt active while releasing the previous receiver.
-      const previousDevice = releaseReceiverSession("replaced", false);
-      await previousDevice?.disconnect();
+      const previous = releaseReceiverSession("replaced", false);
+      await disconnectReceiver(previous);
       if (!isCurrentAttempt()) return;
 
       const connectedDevice = await BluetoothClassic.connectToDevice(address, { delimiter: "\n" });
@@ -157,23 +179,27 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased }
         return;
       }
       connectionRef.current = connectedDevice;
+      releaseAddressRef.current = releaseAddress ?? null;
+      reservationTransferred = true;
       receiverSessionRef.current = attempt;
       onAttached(connectedDevice);
       dataListenerRef.current = connectedDevice.onDataReceived(({ data }) => {
         if (mountedRef.current && receiverSessionRef.current === attempt) onData(data, connectedDevice);
       });
 
-      await configureTopcon(connectedDevice, receiverModel, isCurrentAttempt);
+      if (configureDevice) await configureDevice(connectedDevice, isCurrentAttempt);
+      else if (receiverModel) await configureTopcon(connectedDevice, receiverModel, isCurrentAttempt);
       if (!isCurrentAttempt()) return;
       setConnectedDevice(connectedDevice);
       setConnectionMessage("Connected to " + (connectedDevice.name ?? connectedDevice.address) + ".");
       onReady(connectedDevice);
     } catch (error) {
       if (!isCurrentAttempt()) return;
-      const failedDevice = releaseReceiverSession("connection-failed", false) ?? device;
+      const failed = releaseReceiverSession("connection-failed", false);
       setConnectionMessage("Connection failed: " + String(error));
-      await failedDevice?.disconnect().catch(() => undefined);
+      await disconnectReceiver({ ...failed, device: failed.device ?? device }).catch(() => undefined);
     } finally {
+      if (!reservationTransferred) releaseAddress?.();
       if (isCurrentAttempt()) {
         connectionAttemptRef.current = null;
         setIsConnecting(false);

@@ -1,15 +1,15 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@jest/globals";
 import { act } from "react";
 
-import { authApi } from "../../api/authApi";
-import { AuthApiError } from "../../api/auth-errors";
-import { useEuposSettings } from "../../hooks/use-eupos-settings";
-import { AuthProvider, useAuth } from "../../lib/auth-context";
-import { DEFAULT_EUPOS_SETTINGS, toNtripSettings } from "../../lib/gps/eupos-settings";
+import { authApi } from "../../features/auth/api/auth-api";
+import { AuthApiError } from "../../features/auth/api/auth-errors";
+import { useEuposSettings } from "../../features/gps/hooks/use-eupos-settings";
+import { AuthProvider, useAuth } from "../../features/auth/auth-context";
+import { DEFAULT_EUPOS_SETTINGS, toNtripSettings } from "../../features/gps/eupos-settings";
 
 jest.mock("react-native", () => ({ Platform: { OS: "web" } }));
 jest.mock("expo-secure-store", () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
-jest.mock("../../api/authApi", () => ({
+jest.mock("../../features/auth/api/auth-api", () => ({
   authApi: { login: jest.fn(), register: jest.fn() },
 }));
 

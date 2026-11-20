@@ -54,6 +54,8 @@ The correction stream runs directly between the phone, caster, and receiver. The
 
 ## Run locally
 
+ESP32 firmware and wiring/flash instructions for the MPU6050 sensors are in [firmware/esp32-mpu6050](firmware/esp32-mpu6050/README.md). Every board uses the same firmware and has a stable UUID. Assign each UUID to the boom, arm, or bucket in **Settings > IMU**; fresh tilt measurements articulate the excavator model.
+
 For this app's intended RTK setup, **two GNSS receivers are required, each supporting at least L1 and L2 frequencies**, to establish an RTK fix.
 
 For the full hardware workflow, also use an Android phone, Bluetooth Classic connectivity to the receiver, internet access, and credentials for an NTRIP service. An emulator can help review the UI and authentication; the receiver workflow needs real hardware and a native app build.

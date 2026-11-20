@@ -1,14 +1,23 @@
-import { useGps } from "@/lib/gps-context";
+import { useGps } from "@/features/gps/gps-context";
 import type { ReceiverModel } from "@/lib/gps/receiver-profiles";
+import type { ReceiverSlot } from "@/features/gps/types";
 
 import { getNtripPresentation } from "../presentation/ntrip-status";
 import { getReceiverPresentation } from "../presentation/receiver-state";
 import type { ReceiverDevice } from "../presentation/types";
 
-export function useReceiverControls() {
-  const { bluetooth } = useGps();
-  const connection = getReceiverPresentation(bluetooth);
-  const devices: readonly ReceiverDevice[] = bluetooth.devices.map(({ address, name }) => ({ address, name }));
+export function useReceiverControls(receiverSlot: ReceiverSlot = 1) {
+  const gps = useGps();
+  const bluetooth = receiverSlot === 1 ? gps.bluetooth : gps.secondBluetooth;
+  const other = receiverSlot === 1 ? gps.secondBluetooth : gps.bluetooth;
+  const devices: readonly ReceiverDevice[] = bluetooth.devices
+    .filter(({ name }) => !name?.startsWith("DualGPS-IMU-"))
+    .filter(({ address }) => address.toUpperCase() !== other?.connectedDevice?.address.toUpperCase())
+    .map(({ address, name }) => ({ address, name }));
+  const connection = getReceiverPresentation({
+    ...bluetooth,
+    selectedDevice: devices.find(({ address }) => address === bluetooth.selectedAddress),
+  });
 
   function selectDevice(address: string) {
     if (connection.canSelectDevice && devices.some((device) => device.address === address)) {

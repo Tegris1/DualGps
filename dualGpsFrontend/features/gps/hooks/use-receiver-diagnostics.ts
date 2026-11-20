@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { parseGgaSentence, parseGsaSentence, type GgaFix, type GsaDop } from "@/lib/gps/nmea";
-import type { ConsoleEntry } from "@/lib/gps/types";
+import type { ConsoleEntry } from "@/features/gps/types";
 
 const CONSOLE_ENTRY_LIMIT = 200;
 

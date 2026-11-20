@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { INITIAL_NTRIP_STATUS, NtripSession } from "@/lib/gps/ntrip-session";
-import type { EuposSettings } from "@/lib/gps/types";
+import { INITIAL_NTRIP_STATUS, NtripSession } from "@/features/gps/services/ntrip-session";
+import type { EuposSettings } from "@/features/gps/types";
 
 export function useNtripSession(settings: EuposSettings) {
   const [status, setStatus] = useState(INITIAL_NTRIP_STATUS);
