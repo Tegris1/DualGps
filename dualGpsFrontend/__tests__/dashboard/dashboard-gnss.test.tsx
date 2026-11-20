@@ -10,6 +10,7 @@ import type { GgaFix } from "../../lib/gps/nmea";
 
 jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({
   bluetooth: mockBluetooth, secondBluetooth: mockSecondBluetooth,
+  imus: { sensors: ["boom", "arm", "bucket"].map((section) => ({ section, reading: null, connectedDevice: null, fresh: false, error: null })), pose: null },
 }) }));
 
 const now = 1_700_000_000_000;
@@ -53,6 +54,10 @@ it("expires a fix without new messages, accepts a new fix, and clears the timeou
   try {
     await act(() => { root = create(<Probe />); });
     expect(status.statusText).toBe("RTK FIX");
+    expect(dashboard.armPose).toBeNull();
+    expect(dashboard.imus).toHaveLength(3);
+    expect(dashboard.imus.every((sensor) => sensor.source === "imu" && sensor.tone === "muted")).toBe(true);
+    expect(dashboard.heightDifference).toBe("—");
     expect(dashboard.gnss[1]).toMatchObject({ id: "gps-2", label: "GPS 2", source: "receiver", statusText: "Czeka na GGA" });
     await act(() => jest.advanceTimersByTime(5000));
     mockSecondBluetooth.latestFix = { ...fix, receivedAt: Date.now(), quality: 5 };

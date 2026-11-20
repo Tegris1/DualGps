@@ -17,14 +17,15 @@ export function useDashboardTerrain() {
   const [failedScene, setFailedScene] = useState<string | null>(null);
   const sceneKey = `${preview.modelPair}:${attempt}`;
   const activeScene = useRef(sceneKey);
-  const [sectionSnapshot, setSectionSnapshot] = useState<{ sceneKey: string; data: BucketCrossSections } | null>(null);
+  const [sectionSnapshot, setSectionSnapshot] = useState<{ sceneKey: string; data: BucketCrossSections | null } | null>(null);
   useLayoutEffect(() => { activeScene.current = sceneKey; }, [sceneKey]);
-  const onCrossSection = useCallback((data: BucketCrossSections) => {
+  const onCrossSection = useCallback((data: BucketCrossSections | null) => {
     if (activeScene.current === sceneKey) setSectionSnapshot({ sceneKey, data });
   }, [sceneKey]);
   const sectionState: TerrainSectionState = !currentTerrain || !targetTerrain ? "unselected"
     : failedScene === sceneKey ? "error"
-    : !preview.loaded || sectionSnapshot?.sceneKey !== sceneKey ? "loading" : "ready";
+    : !preview.loaded || sectionSnapshot?.sceneKey !== sceneKey ? "loading"
+    : sectionSnapshot.data === null ? "unavailable" : "ready";
   const sectionData = sectionSnapshot?.sceneKey === sceneKey ? sectionSnapshot.data : null;
   const crossSection = useMemo(() => getTerrainCrossSectionPresentation(sectionData, sectionState), [sectionData, sectionState]);
   const cameraEnabled = preview.loaded && failedScene !== sceneKey && step === null;

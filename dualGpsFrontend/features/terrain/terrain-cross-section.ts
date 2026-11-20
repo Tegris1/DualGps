@@ -55,11 +55,12 @@ export function getTerrainCrossSection(terrain: Object3D, origin: Vector3, diggi
   return segments.sort((a, b) => a[0].distance - b[0].distance || a[0].elevation - b[0].elevation);
 }
 
-export function getBucketCrossSections(current: Object3D, target: Object3D, bucketTip: Object3D): BucketCrossSections {
+export function getBucketCrossSections(current: Object3D, target: Object3D, bucketTip: Object3D, diggingFrame: Object3D = bucketTip): BucketCrossSections {
   bucketTip.updateWorldMatrix(true, false);
   const origin = bucketTip.getWorldPosition(new Vector3());
   // The procedural excavator digs along local +X; retain its world heading.
-  const direction = new Vector3(1, 0, 0).transformDirection(bucketTip.matrixWorld);
+  diggingFrame.updateWorldMatrix(true, false);
+  const direction = new Vector3(1, 0, 0).transformDirection(diggingFrame.matrixWorld);
   return {
     current: getTerrainCrossSection(current, origin, direction),
     target: getTerrainCrossSection(target, origin, direction),

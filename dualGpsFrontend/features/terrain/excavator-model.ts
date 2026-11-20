@@ -9,6 +9,13 @@ import {
   Raycaster,
   Vector3,
 } from "three";
+import type { ArmAngles } from "@/lib/imu/imu-protocol";
+
+export const DEFAULT_ARM_ANGLES: ArmAngles = {
+  boom: Math.atan2(1.68, 0.85) * 180 / Math.PI,
+  arm: Math.atan2(-1.85, 1.1) * 180 / Math.PI,
+  bucket: Math.atan2(-0.71, 0.725) * 180 / Math.PI,
+};
 
 // Presentation proportions, scaled to the terrain footprint; not surveyed dimensions.
 export function createExcavator(terrain: Object3D) {
@@ -79,6 +86,7 @@ export function createExcavator(terrain: Object3D) {
       new Vector3(0, 1, 0),
       end.clone().sub(start).normalize(),
     );
+    return mesh;
   }
   for (const z of [-0.66, 0.66]) {
     box(2.1, 0.5, 0.42, 0, 0.25, z, dark);
@@ -99,28 +107,75 @@ export function createExcavator(terrain: Object3D) {
   const shoulder = new Vector3(0.5, 1.12, -0.25);
   const elbow = new Vector3(1.35, 2.8, -0.25);
   const wrist = new Vector3(2.45, 0.95, -0.25);
-  link(shoulder, elbow, 0.3);
-  link(elbow, wrist, 0.23);
-  link(
+  const boomMesh = link(shoulder, elbow, 0.3);
+  const armMesh = link(elbow, wrist, 0.23);
+  const boomHydraulic = link(
     new Vector3(0.25, 1.15, -0.25),
     new Vector3(1.1, 2.35, -0.25),
     0.1,
     dark,
   );
-  link(new Vector3(1.5, 2.5, -0.25), new Vector3(2.2, 1.4, -0.25), 0.08, dark);
-  box(0.65, 0.15, 0.8, 2.65, 0.35, -0.25, dark);
-  box(0.18, 0.65, 0.8, 2.38, 0.62, -0.25);
-  for (const z of [-0.65, 0.15]) box(0.65, 0.48, 0.08, 2.65, 0.52, z);
+  const armHydraulic = link(new Vector3(1.5, 2.5, -0.25), new Vector3(2.2, 1.4, -0.25), 0.08, dark);
+  const bucketParts = [box(0.65, 0.15, 0.8, 2.65, 0.35, -0.25, dark),
+    box(0.18, 0.65, 0.8, 2.38, 0.62, -0.25)];
+  for (const z of [-0.65, 0.15]) bucketParts.push(box(0.65, 0.48, 0.08, 2.65, 0.52, z));
   for (const z of [-0.52, -0.25, 0.02])
-    box(0.25, 0.12, 0.12, 3.05, 0.3, z, dark);
+    bucketParts.push(box(0.25, 0.12, 0.12, 3.05, 0.3, z, dark));
   const bucketTip = new Object3D();
   bucketTip.name = "Bucket cutting edge";
   bucketTip.position.set(3.175, 0.24, -0.25);
   model.add(bucketTip);
+  const boomLength = shoulder.distanceTo(elbow);
+  const armLength = elbow.distanceTo(wrist);
+  const boomPivot = new Group();
+  boomPivot.name = "Boom hinge";
+  boomPivot.position.copy(shoulder);
+  boomPivot.rotation.z = DEFAULT_ARM_ANGLES.boom * Math.PI / 180;
+  model.add(boomPivot);
+  const armPivot = new Group();
+  armPivot.name = "Arm hinge";
+  armPivot.position.x = boomLength;
+  armPivot.rotation.z = (DEFAULT_ARM_ANGLES.arm - DEFAULT_ARM_ANGLES.boom) * Math.PI / 180;
+  boomPivot.add(armPivot);
+  const bucketPivot = new Group();
+  bucketPivot.name = "Bucket hinge";
+  bucketPivot.position.x = armLength;
+  bucketPivot.rotation.z = (DEFAULT_ARM_ANGLES.bucket - DEFAULT_ARM_ANGLES.arm) * Math.PI / 180;
+  armPivot.add(bucketPivot);
   model.updateMatrixWorld(true);
+  boomPivot.attach(boomMesh);
+  armPivot.attach(armMesh);
+  [...bucketParts, bucketTip].forEach((part) => bucketPivot.attach(part));
+  model.updateMatrixWorld(true);
+
+  function updateHydraulic(mesh: Mesh<BoxGeometry | CylinderGeometry>, start: Vector3, end: Vector3) {
+    mesh.position.copy(start).add(end).multiplyScalar(0.5);
+    mesh.scale.y = start.distanceTo(end) / mesh.geometry.parameters.height;
+    mesh.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), end.clone().sub(start).normalize());
+  }
+
+  function setArmAngles(angles: ArmAngles | null | undefined) {
+    const value = angles === undefined ? DEFAULT_ARM_ANGLES : angles;
+    const available = value !== null && Object.values(value).every((angle) => Number.isFinite(angle) && Math.abs(angle) <= 180);
+    boomPivot.visible = boomHydraulic.visible = armHydraulic.visible = available;
+    if (!available || !value) return;
+    const a = value.boom * Math.PI / 180;
+    const b = value.arm * Math.PI / 180;
+    const c = value.bucket * Math.PI / 180;
+    boomPivot.rotation.z = a;
+    armPivot.rotation.z = b - a;
+    bucketPivot.rotation.z = c - b;
+    const nextElbow = shoulder.clone().add(new Vector3(Math.cos(a), Math.sin(a), 0).multiplyScalar(boomLength));
+    const nextWrist = nextElbow.clone().add(new Vector3(Math.cos(b), Math.sin(b), 0).multiplyScalar(armLength));
+    updateHydraulic(boomHydraulic, new Vector3(0.25, 1.15, -0.25), shoulder.clone().lerp(nextElbow, 0.73));
+    updateHydraulic(armHydraulic, shoulder.clone().lerp(nextElbow, 0.82), nextElbow.clone().lerp(nextWrist, 0.76));
+    model.updateMatrixWorld(true);
+  }
   return {
     model,
     bucketTip,
+    arm: boomPivot,
+    setArmAngles,
     dispose: () => {
       geometries.forEach((geometry) => geometry.dispose());
       [yellow, dark, glass].forEach((material) => material.dispose());

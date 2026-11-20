@@ -83,3 +83,18 @@ it("rejects undefined or non-finite slice directions and origins", () => {
   }
   expect(() => getTerrainCrossSection(terrain, new Vector3(NaN, 0, 0), new Vector3(1, 0, 0))).toThrow("bucket position");
 });
+
+it("keeps the digging plane aligned to the machine when the bucket rotates vertically", () => {
+  const terrain = patch();
+  const machine = new Group();
+  const bucket = new Object3D();
+  machine.add(bucket);
+  bucket.position.y = 3;
+  bucket.rotation.z = Math.PI / 2;
+  try {
+    const section = getBucketCrossSections(terrain, terrain, bucket, machine);
+    expect(section.current).toHaveLength(2);
+    expect(section.current).toEqual(section.target);
+    expect(section.bucket.elevation).toBe(3);
+  } finally { terrain.geometry.dispose(); }
+});

@@ -32,7 +32,7 @@ export function DashboardScreen({ data, isActive = true, ...actions }: Dashboard
       layout={layout}
       crossSection={<TerrainCrossSectionPanel section={terrain.crossSection} compact={layout.compact} plotHeight={layout.plotHeight} />}
       terrain={
-        <DashboardTerrainPanel isActive={isActive} compact={layout.compact} controller={terrain} controls={<>
+        <DashboardTerrainPanel armPose={data.armPose} isActive={isActive} compact={layout.compact} controller={terrain} controls={<>
           <DashboardCameraControls {...camera} onClose={returnToMenu} />
           <DashboardLayerControls {...layers} onClose={returnToMenu} />
         </>} />

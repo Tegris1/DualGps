@@ -1,4 +1,5 @@
 import type { CrossSectionData } from "./cross-section";
+import type { ArmAngles } from "@/lib/imu/imu-protocol";
 
 export type DashboardSensor = {
   id: string;
@@ -19,12 +20,13 @@ export type DashboardSensorViewModel = {
   id: string;
   label: string;
   statusText: string;
-  source: "preset" | "receiver";
+  source: "preset" | "receiver" | "imu";
   tone: "success" | "warning" | "muted";
   details?: string;
 };
 
 export type DashboardViewModel = {
+  armPose?: ArmAngles | null;
   sourceLabel: string;
   heightDifference: string;
   heightDescription: string;

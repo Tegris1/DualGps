@@ -2,7 +2,7 @@ import type { BucketCrossSections } from "@/features/terrain/terrain-cross-secti
 
 import { createSegmentCrossSectionModel } from "../cross-section";
 
-export type TerrainSectionState = "unselected" | "loading" | "error" | "ready";
+export type TerrainSectionState = "unselected" | "loading" | "error" | "ready" | "unavailable";
 
 export function getTerrainCrossSectionPresentation(data: BucketCrossSections | null, state: TerrainSectionState) {
   const model = state === "ready" && data ? createSegmentCrossSectionModel(data) : null;
@@ -11,6 +11,7 @@ export function getTerrainCrossSectionPresentation(data: BucketCrossSections | n
   const comparisonLabel = roundedDifference === null ? "—"
     : `${roundedDifference > 0 ? "+" : roundedDifference < 0 ? "−" : ""}${Math.abs(roundedDifference).toFixed(3).replace(".", ",")} m`;
   const emptyMessages: Record<TerrainSectionState, string> = {
+    unavailable: "Połącz trzy czujniki IMU i poczekaj na aktualne pomiary ramienia.",
     unselected: "Wybierz teren pomiarowy i projekt, aby zobaczyć przekrój.",
     loading: "Ładowanie przekroju modeli…",
     error: "Przekrój niedostępny. Ponów ładowanie terenu 3D.",

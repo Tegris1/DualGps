@@ -1,6 +1,6 @@
 import { expect, it, jest } from "@jest/globals";
 import { Box3, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from "three";
-import { createExcavator } from "../../features/terrain/excavator-model";
+import { createExcavator, DEFAULT_ARM_ANGLES } from "../../features/terrain/excavator-model";
 
 it("grounds the excavator on transformed terrain and exposes the bucket edge in world coordinates", () => {
   const terrain = new Group();
@@ -41,4 +41,37 @@ it("rejects empty terrain and a footprint with no ground beneath it", () => {
   }
   try { expect(() => createExcavator(terrain)).toThrow("No current terrain surface"); }
   finally { geometry.dispose(); material.dispose(); }
+});
+
+it("converts absolute section inclinations into relative joints and moves the bucket without recreating geometry", () => {
+  const surface = new Mesh(new PlaneGeometry(40, 20), new MeshBasicMaterial());
+  surface.rotation.x = -Math.PI / 2;
+  const excavator = createExcavator(surface);
+  const tip = () => excavator.model.worldToLocal(excavator.bucketTip.getWorldPosition(new Vector3()));
+  const boomLength = Math.hypot(0.85, 1.68);
+  const armLength = Math.hypot(1.1, 1.85);
+  const bucketLength = Math.hypot(0.725, 0.71);
+  const geometry = (excavator.model.children[0] as Mesh).geometry;
+  try {
+    excavator.setArmAngles({ boom: 0, arm: 0, bucket: 0 });
+    expect(tip().x).toBeCloseTo(0.5 + boomLength + armLength + bucketLength);
+    expect(tip().y).toBeCloseTo(1.12);
+    excavator.setArmAngles({ boom: 90, arm: 0, bucket: 0 });
+    expect(tip().x).toBeCloseTo(0.5 + armLength + bucketLength);
+    expect(tip().y).toBeCloseTo(1.12 + boomLength);
+    excavator.setArmAngles({ boom: 90, arm: 0, bucket: -90 });
+    expect(tip().x).toBeCloseTo(0.5 + armLength);
+    expect(tip().y).toBeCloseTo(1.12 + boomLength - bucketLength);
+    expect((excavator.model.children[0] as Mesh).geometry).toBe(geometry);
+    excavator.setArmAngles(null);
+    expect(excavator.arm.visible).toBe(false);
+    excavator.setArmAngles(undefined);
+    expect(excavator.arm.visible).toBe(true);
+    expect(excavator.arm.rotation.z).toBeCloseTo(DEFAULT_ARM_ANGLES.boom * Math.PI / 180);
+    expect(tip().toArray()).toEqual(expect.arrayContaining([expect.closeTo(3.175), expect.closeTo(0.24), expect.closeTo(-0.25)]));
+  } finally {
+    excavator.dispose();
+    surface.geometry.dispose();
+    (surface.material as MeshBasicMaterial).dispose();
+  }
 });
