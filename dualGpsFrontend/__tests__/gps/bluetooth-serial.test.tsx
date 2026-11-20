@@ -10,6 +10,7 @@ import { NtripConnection, type NtripConnectionCallbacks, type NtripState } from 
 import { configureTopcon } from "../../lib/gps/receiver-profiles";
 import { ensureBluetoothConnectPermission } from "../../features/gps/bluetooth-permissions";
 import { gga, gsa } from "../fixtures/nmea";
+import { imuPacket } from "../fixtures/imu";
 
 jest.mock("react-native", () => ({ NativeModules: { RNBluetoothClassic: {} } }));
 jest.mock("react-native-bluetooth-classic", () => ({
@@ -480,7 +481,7 @@ it("shares one provider-owned session across consumers and preserves it when one
   await act(async () => receiver.emit(gga()));
   expect(first).toBe(second);
   expect(second.connectedDevice).toBe(device());
-  expect(BluetoothClassic.onDeviceDisconnected).toHaveBeenCalledTimes(2);
+  expect(BluetoothClassic.onDeviceDisconnected).toHaveBeenCalledTimes(5);
   expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(1);
   expect(receiver.onDataReceived).toHaveBeenCalledTimes(1);
   expect(sessions).toHaveLength(1);
@@ -491,7 +492,7 @@ it("shares one provider-owned session across consumers and preserves it when one
   await act(() => { root.unmount(); root = null; });
   expect(receiver.disconnect).toHaveBeenCalledTimes(1);
   expect(receiver.subscription.remove).toHaveBeenCalledTimes(1);
-  expect(disconnectSubscription.remove).toHaveBeenCalledTimes(2);
+  expect(disconnectSubscription.remove).toHaveBeenCalledTimes(5);
   expect(sessions[0].stop).toHaveBeenCalledTimes(1);
 });
 
@@ -565,4 +566,38 @@ it("reserves a device across both slots until a cancelled native connection has 
   expect(BluetoothClassic.connectToDevice).toHaveBeenCalledTimes(2);
   expect(gps.secondBluetooth.connectedDevice).toBe(device());
   expect(gps.bluetooth.connectedDevice).toBeNull();
+});
+
+it("receives three independent IMUs, rejects wrong roles, expires poses and cleans up without sending GNSS commands", async () => {
+  let gps!: ReturnType<typeof useGps>;
+  const hardware = [makeReceiver("IMU1"), makeReceiver("IMU2"), makeReceiver("IMU3")];
+  function Consumer() { gps = useGps(); return null; }
+  await act(() => { root = create(<GpsProvider><Consumer /></GpsProvider>); });
+  jest.mocked(BluetoothClassic.connectToDevice).mockImplementation(async (address) => device(hardware.find((item) => item.address === address)!));
+  await act(async () => {
+    await Promise.all(gps.imus.sensors.map((sensor, index) => sensor.connectSelected(hardware[index].address)));
+  });
+  expect(configureTopcon).not.toHaveBeenCalled();
+  expect(NtripConnection).not.toHaveBeenCalled();
+  await act(() => hardware[0].emit(JSON.stringify(imuPacket("arm"))));
+  expect(gps.imus.sensors[0].error).toContain("Expected boom");
+  expect(gps.imus.pose).toBeNull();
+  await act(() => {
+    hardware.forEach((item, index) => item.emit(JSON.stringify(imuPacket((["boom", "arm", "bucket"] as const)[index]))));
+  });
+  expect(gps.imus.pose).toEqual({ boom: 60, arm: 60, bucket: 60 });
+  await act(() => disconnected(device(hardware[1])));
+  expect(gps.imus.sensors[1].reading).toBeNull();
+  expect(gps.imus.sensors[0].reading?.id).toBe("boom");
+  expect(gps.imus.pose).toBeNull();
+  await act(async () => { await gps.imus.sensors[1].connectSelected("IMU2"); });
+  await act(() => hardware[1].emit(JSON.stringify(imuPacket("arm"))));
+  expect(gps.imus.pose).not.toBeNull();
+  await act(async () => { await jest.advanceTimersByTimeAsync(1000); });
+  expect(gps.imus.pose).toBeNull();
+  expect(gps.imus.sensors.every((sensor) => !sensor.fresh)).toBe(true);
+  await act(() => { root.unmount(); root = null; });
+  expect(hardware.every((item) => item.disconnect.mock.calls.length === 1)).toBe(true);
+  expect(hardware[0].subscription.remove).toHaveBeenCalledTimes(1);
+  expect(NtripConnection).not.toHaveBeenCalled();
 });

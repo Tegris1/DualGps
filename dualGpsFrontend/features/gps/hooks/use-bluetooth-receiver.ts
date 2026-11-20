@@ -16,6 +16,7 @@ type ReceiverLifecycleCallbacks = {
   onData: (data: string, device: BluetoothDevice) => void;
   onReleased: (reason: ReceiverReleaseReason) => void;
   assignments?: ReceiverAssignments;
+  configureDevice?: (device: BluetoothDevice, isActive: () => boolean) => Promise<void>;
 };
 
 type ReleasedReceiver = { device: BluetoothDevice | null; releaseAddress: (() => void) | null };
@@ -28,7 +29,7 @@ async function disconnectReceiver({ device, releaseAddress }: ReleasedReceiver) 
   }
 }
 
-export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased, assignments }: ReceiverLifecycleCallbacks) {
+export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased, assignments, configureDevice }: ReceiverLifecycleCallbacks) {
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [connectedDevice, setConnectedDevice] = useState<BluetoothDevice | null>(null);
@@ -141,12 +142,12 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased, 
       setConnectionMessage(BLUETOOTH_MODULE_UNAVAILABLE);
       return;
     }
-    if (!mountedRef.current || !address || !receiverModel || connectionAttemptRef.current) return;
+    if (!mountedRef.current || !address || (!receiverModel && !configureDevice) || connectionAttemptRef.current) return;
     if (connectionRef.current?.address === address) return;
 
     const releaseAddress = assignments?.reserve(address);
     if (assignments && !releaseAddress) {
-      setConnectionMessage("This device is already assigned to the other GPS receiver.");
+      setConnectionMessage("This device is already assigned to another receiver or IMU.");
       return;
     }
     let reservationTransferred = false;
@@ -186,7 +187,8 @@ export function useBluetoothReceiver({ onAttached, onReady, onData, onReleased, 
         if (mountedRef.current && receiverSessionRef.current === attempt) onData(data, connectedDevice);
       });
 
-      await configureTopcon(connectedDevice, receiverModel, isCurrentAttempt);
+      if (configureDevice) await configureDevice(connectedDevice, isCurrentAttempt);
+      else if (receiverModel) await configureTopcon(connectedDevice, receiverModel, isCurrentAttempt);
       if (!isCurrentAttempt()) return;
       setConnectedDevice(connectedDevice);
       setConnectionMessage("Connected to " + (connectedDevice.name ?? connectedDevice.address) + ".");

@@ -13,6 +13,8 @@ import type { BluetoothSerialController } from "../../features/gps/hooks/use-blu
 import type { EuposSettingsController } from "../../features/gps/hooks/use-eupos-settings";
 import { DEFAULT_EUPOS_SETTINGS } from "../../features/gps/eupos-settings";
 import type { GgaFix } from "../../lib/gps/nmea";
+import type { ArmImuController } from "../../features/imu/use-arm-imus";
+import { imuPacket } from "../fixtures/imu";
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => "MaterialIcons");
 jest.mock("expo-router", () => ({
@@ -22,6 +24,7 @@ jest.mock("expo-router", () => ({
 }));
 jest.mock("../../features/gps/gps-context", () => ({ useGps: () => ({
   bluetooth: mockBluetooth, eupos: mockEupos, secondBluetooth: mockSecondBluetooth, secondEupos: mockSecondEupos,
+  imus: mockImus,
 }) }));
 jest.mock("react-native-safe-area-context", () => ({ SafeAreaView: require("react-native").View }));
 
@@ -30,6 +33,7 @@ const mockRouter = { navigate: jest.fn() };
 let root: ReturnType<typeof create>;
 let mockBluetooth: BluetoothSerialController;
 let mockSecondBluetooth: BluetoothSerialController;
+let mockImus: ArmImuController;
 const mockEupos: EuposSettingsController = {
   settings: DEFAULT_EUPOS_SETTINGS, isSaving: false, saveResult: null,
   update: jest.fn(), save: jest.fn(async () => {}),
@@ -336,4 +340,33 @@ it("prevents selecting a Bluetooth device already connected to the other slot", 
   expect(connectButton.props.disabled).toBe(true);
   await act(() => connectButton.props.onPress());
   expect(mockSecondBluetooth.connectSelected).not.toHaveBeenCalled();
+});
+
+it("connects IMUs by section and keeps their actions separate from GNSS profiles", async () => {
+  mockBluetooth = controller();
+  mockImus = { sensors: (["boom", "arm", "bucket"] as const).map((section, index) => {
+    const device = { address: `IMU${index}`, name: `DualGPS-IMU-${section}-00000${index}` } as BluetoothDevice;
+    return { ...controller({ devices: [device], selectedAddress: device.address, selectedDevice: device }),
+      section, fresh: false, reading: null, error: null };
+  }), pose: null };
+  await render(<SettingsScreen />);
+  await act(() => root.root.findByType(SettingsTabs).props.onChange("imu"));
+  expect(readings()).toContain("Boom / Wysięgnik");
+  const connect = () => root.root.find((node: any) => node.props.label === "Connect IMU");
+  await act(() => connect().props.onPress());
+  expect(mockImus.sensors[0].connectSelected).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.connectSelected).not.toHaveBeenCalled();
+  expect(mockImus.sensors[0].selectReceiverModel).not.toHaveBeenCalled();
+  await act(() => action("arm").props.onPress());
+  expect(readings()).toContain("Arm / Ramię");
+  await act(() => connect().props.onPress());
+  expect(mockImus.sensors[1].connectSelected).toHaveBeenCalledTimes(1);
+  mockImus.sensors[1] = { ...mockImus.sensors[1], connectedDevice: mockImus.sensors[1].devices[0], fresh: true,
+    reading: { ...imuPacket("arm", { status: "calibrating", calibrated: false, angle: null }), receivedAt: Date.now() } };
+  await act(() => root.update(<SettingsScreen />));
+  expect(readings()).toContain("Keep the arm still while the gyroscope calibrates");
+  const disconnect = root.root.find((node: any) => node.props.label === "Disconnect IMU");
+  await act(() => disconnect.props.onPress());
+  expect(mockImus.sensors[1].disconnect).toHaveBeenCalledTimes(1);
+  expect(mockBluetooth.disconnect).not.toHaveBeenCalled();
 });

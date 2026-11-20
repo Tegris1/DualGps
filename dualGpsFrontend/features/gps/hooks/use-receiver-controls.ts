@@ -11,6 +11,7 @@ export function useReceiverControls(receiverSlot: ReceiverSlot = 1) {
   const bluetooth = receiverSlot === 1 ? gps.bluetooth : gps.secondBluetooth;
   const other = receiverSlot === 1 ? gps.secondBluetooth : gps.bluetooth;
   const devices: readonly ReceiverDevice[] = bluetooth.devices
+    .filter(({ name }) => !name?.startsWith("DualGPS-IMU-"))
     .filter(({ address }) => address.toUpperCase() !== other?.connectedDevice?.address.toUpperCase())
     .map(({ address, name }) => ({ address, name }));
   const connection = getReceiverPresentation({

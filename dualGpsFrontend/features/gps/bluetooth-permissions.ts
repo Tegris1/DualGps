@@ -16,7 +16,7 @@ export async function ensureBluetoothConnectPermission(): Promise<boolean> {
   const result = await PermissionsAndroid.request(permission, {
     title: "Bluetooth access required",
     message:
-      "Dual GPS needs Bluetooth access to communicate with your paired GNSS receiver.",
+      "Dual GPS needs Bluetooth access to communicate with paired GNSS receivers and arm sensors.",
     buttonPositive: "Allow",
     buttonNegative: "Cancel"
   });

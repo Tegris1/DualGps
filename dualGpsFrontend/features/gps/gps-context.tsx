@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { ReceiverAssignments } from "@/features/gps/services/receiver-assignments";
+import { useArmImus, type ArmImuController } from "@/features/imu/use-arm-imus";
 
 import {
   useBluetoothSerial,
@@ -15,6 +16,7 @@ type GpsContextValue = {
   eupos: EuposSettingsController;
   secondBluetooth: BluetoothSerialController;
   secondEupos: EuposSettingsController;
+  imus: ArmImuController;
 };
 
 const GpsContext = createContext<GpsContextValue | undefined>(undefined);
@@ -25,9 +27,10 @@ export function GpsProvider({ children }: { children: ReactNode }) {
   const secondEupos = useEuposSettings(2);
   const bluetooth = useBluetoothSerial(eupos.settings, assignments);
   const secondBluetooth = useBluetoothSerial(secondEupos.settings, assignments);
+  const imus = useArmImus(assignments);
 
   return (
-    <GpsContext.Provider value={{ bluetooth, eupos, secondBluetooth, secondEupos }}>
+    <GpsContext.Provider value={{ bluetooth, eupos, secondBluetooth, secondEupos, imus }}>
       {children}
     </GpsContext.Provider>
   );

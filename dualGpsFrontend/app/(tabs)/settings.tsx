@@ -17,6 +17,7 @@ import { getEuposSaveFeedback } from "@/features/gps/presentation/eupos-feedback
 import { useReceiverControls } from "@/features/gps/hooks/use-receiver-controls";
 import { ReceiverSelector } from "@/features/gps/components/settings/receiver-selector";
 import type { ReceiverSlot } from "@/features/gps/types";
+import { ImuSettings } from "@/features/imu/imu-settings";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function SettingsScreen() {
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("bluetooth");
   useFocusEffect(useCallback(() => {
-    setActiveSection(section === "debug" || section === "eupos" ? section : "bluetooth");
+    setActiveSection(section === "debug" || section === "eupos" || section === "imu" ? section : "bluetooth");
   }, [section]));
   const gps = useGps();
   const eupos = receiverSlot === 1 ? gps.eupos : gps.secondEupos;
@@ -39,12 +40,13 @@ export default function SettingsScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <SettingsHeader isGpsOnline={connection.isConnected} onReturn={() => router.navigate("/(tabs)")} />
-        <ReceiverSelector value={receiverSlot} onChange={setReceiverSlot} />
+        {activeSection !== "imu" && <ReceiverSelector value={receiverSlot} onChange={setReceiverSlot} />}
         <SettingsTabs
           activeTab={activeSection}
           onChange={setActiveSection}
         />
 
+        {activeSection === "imu" && <ImuSettings controller={gps.imus} />}
         {activeSection === "bluetooth" && (
           <BluetoothSettings
             devices={receiver.devices}

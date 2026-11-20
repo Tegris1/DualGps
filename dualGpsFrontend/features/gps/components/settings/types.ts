@@ -1,1 +1,1 @@
-export type SettingsSection = "bluetooth" | "eupos" | "debug";
+export type SettingsSection = "bluetooth" | "eupos" | "debug" | "imu";

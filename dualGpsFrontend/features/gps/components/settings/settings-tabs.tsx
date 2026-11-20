@@ -13,6 +13,7 @@ const tabs: {
   { key: "bluetooth", label: "Bluetooth", icon: "bluetooth" },
   { key: "eupos", label: "ASG-EUPOS", icon: "dns" },
   { key: "debug", label: "Debug", icon: "terminal" },
+  { key: "imu", label: "IMU", icon: "sensors" },
 ];
 
 export function SettingsTabs({
