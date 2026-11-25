@@ -10,8 +10,6 @@ import { createExcavator } from "./excavator-model";
 import { getBucketCrossSections, type BucketCrossSections } from "./terrain-cross-section";
 import type { ArmAngles } from "@/lib/imu/imu-protocol";
 
-// GLTFLoader probes browser versions even with native texture loading. React
-// Native exposes navigator without userAgent; identify it without claiming a browser.
 if (typeof navigator !== "undefined" && typeof navigator.userAgent !== "string") {
   Object.defineProperty(navigator, "userAgent", { value: "ReactNative", configurable: true });
 }

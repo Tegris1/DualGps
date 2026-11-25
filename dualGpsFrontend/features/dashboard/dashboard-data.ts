@@ -4,7 +4,6 @@ export const dashboardPrimaryGnssPreset: DashboardSensor = {
   id: "gps-1", label: "GPS 1", status: "rtk-fix",
 };
 
-// Presentation fixtures only; these values do not describe connected hardware.
 export const dashboardPresetData: DashboardReadings = {
   source: "preset",
   crossSection: {
