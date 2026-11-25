@@ -89,6 +89,10 @@ All routes except `/api/auth/**` and `/error` require a valid JWT in `Authorizat
 | `POST` | `/api/auth/login`          | JSON: `email`, `password`             | `200`, `{ "token": "..." }`   |
 | `POST` | `/api/files`               | Multipart: `file`, `purpose`          | `201`, uploaded file metadata |
 | `GET`  | `/api/files/{id}/download` | File UUID in the path                 | `200`, attachment stream      |
+| `GET` | `/api/terrain-files` | Architect access | `200`, files owned by the architect |
+| `POST` | `/api/terrain-files` | Architect access, multipart `file` (.glb) | `201`, uploaded file metadata |
+| `PUT` | `/api/terrain-files/{id}` | Architect access, multipart `file` (.glb) | `200`, replacement file metadata |
+| `DELETE` | `/api/terrain-files/{id}` | Architect access, file UUID | `204` |
 
 File purposes are `USER_AVATAR`, `GPS_IMPORT`, and `DOCUMENT`. These classify stored files; the API does not parse imported GNSS data. Upload metadata contains `id`, `originalFilename`, `contentType`, `size`, `purpose`, and `createdAt`. Uploads return a `Location` header, but a standalone metadata GET endpoint is not implemented.
 
@@ -169,4 +173,4 @@ Those tests use mocked application dependencies or temporary storage directories
 
 JWTs expire after one hour. The signing key is generated in memory at startup, so a backend restart invalidates existing tokens. New accounts receive the `OPERATOR` role. Registration currently returns the user entity, including its encoded password field; a dedicated response DTO is still needed. The frontend's registered-user type also contains legacy fields that do not match the backend's current user model.
 
-The current setup uses local credentials, Hibernate schema updates, and local file storage for development. File listing, metadata retrieval, deletion endpoints, and a mobile file management screen are not yet implemented.
+The current setup uses local credentials, Hibernate schema updates, and local file storage for development. Terrain files are scoped to their architect account. Operator and admin accounts use `/api/files` for general file storage.
