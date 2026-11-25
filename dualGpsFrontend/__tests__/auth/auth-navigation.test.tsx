@@ -1,4 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@jest/globals";
+import { Buffer } from "buffer";
+import { Stack } from "expo-router";
 import { act } from "react";
 import { Button, TextInput } from "react-native-paper";
 import * as SecureStore from "expo-secure-store";
@@ -18,18 +20,19 @@ jest.mock("react-native-paper", () => ({
   useTheme: () => ({ colors: { error: "red" } }),
 }));
 jest.mock("expo-router", () => {
-  const Stack = () => {
+  const { Children } = require("react");
+  const Stack = ({ children }: { children: React.ReactNode }) => {
     const AuthScreen = require("../../app/auth").default;
-    return <AuthScreen />;
+    const screens = Children.toArray(children)
+      .filter((group: any) => group.props.guard)
+      .flatMap((group: any) => Children.toArray(group.props.children));
+    return screens.map((screen: any) => screen.props.name === "auth"
+      ? <AuthScreen key="auth" />
+      : <Stack.Screen key={screen.props.name} name={screen.props.name} />);
   };
   Stack.Protected = "Protected";
-  Stack.Screen = "Screen";
-  return {
-    Stack,
-    useRouter: () => mockRouter,
-    useSegments: () => mockSegments,
-    useNavigationContainerRef: () => mockNavigationRef,
-  };
+  Stack.Screen = (_props: { name: string }) => null;
+  return { Stack };
 });
 
 // Exercise the online route guard regardless of the developer's offline-mode setting.
@@ -41,17 +44,6 @@ else process.env.EXPO_PUBLIC_OFFLINE_MODE = previousOfflineMode;
 
 const { create } = require("react-test-renderer");
 let root: ReturnType<typeof create>;
-const mockRouter = { replace: jest.fn() };
-const mockSegments = ["auth"];
-let mockNavigationReady = true;
-const mockReadyListeners = new Set<() => void>();
-const mockNavigationRef = {
-  isReady: () => mockNavigationReady,
-  addListener: (_event: string, listener: () => void) => {
-    mockReadyListeners.add(listener);
-    return () => { mockReadyListeners.delete(listener); };
-  },
-};
 const previousActEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 const originalError = console.error;
 let errorSpy: ReturnType<typeof jest.spyOn>;
@@ -65,11 +57,9 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockNavigationReady = true;
-  mockReadyListeners.clear();
   jest.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
   jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
-  jest.mocked(authApi.login).mockResolvedValue({ token: "token" });
+  jest.mocked(authApi.login).mockResolvedValue({ token: tokenFor("OPERATOR") });
 });
 
 afterEach(async () => { await act(() => root?.unmount()); });
@@ -98,7 +88,16 @@ async function signInThroughForm(isSignUp = false) {
   });
 }
 
-it.each([false, true])("redirects exactly once through the route guard after authentication (sign-up: %s)", async (isSignUp) => {
+function tokenFor(role: string) {
+  const payload = Buffer.from(JSON.stringify({ roles: [role] })).toString("base64").replace(/=+$/, "");
+  return "header." + payload + ".signature";
+}
+
+function availableScreens() {
+  return root.root.findAllByType(Stack.Screen).map((screen: any) => screen.props.name);
+}
+
+it.each([false, true])("enables the operator routes after authentication (sign-up: %s)", async (isSignUp) => {
   await signInThroughForm(isSignUp);
   expect(authApi.login).toHaveBeenCalledWith({ email: "operator@example.com", password: "secret" });
   expect(authApi.register).toHaveBeenCalledTimes(isSignUp ? 1 : 0);
@@ -108,20 +107,42 @@ it.each([false, true])("redirects exactly once through the route guard after aut
     });
   }
   expect(SecureStore.setItemAsync).toHaveBeenCalledWith("dualgps.auth-session", JSON.stringify({
-    token: "token", email: "operator@example.com",
+    token: tokenFor("OPERATOR"), email: "operator@example.com",
   }));
-  expect(mockRouter.replace).toHaveBeenCalledTimes(1);
-  expect(mockRouter.replace).toHaveBeenCalledWith("/");
+  expect(availableScreens()).toEqual(["(tabs)", "modal"]);
+  expect(root.root.findAllByType(TextInput)).toHaveLength(0);
 });
 
-it("waits for navigation readiness before redirecting a successful sign-in", async () => {
-  mockNavigationReady = false;
+it("opens the terrain library as the only route after architect sign-in", async () => {
+  jest.mocked(authApi.login).mockResolvedValue({ token: tokenFor("ARCHITECT") });
   await signInThroughForm();
-  expect(mockRouter.replace).not.toHaveBeenCalled();
-  await act(() => {
-    mockNavigationReady = true;
-    mockReadyListeners.forEach((listener) => listener());
+  expect(availableScreens()).toEqual(["terrain-files"]);
+  expect(root.root.findAllByType(TextInput)).toHaveLength(0);
+});
+
+it("restores the architect route from an existing saved session", async () => {
+  jest.mocked(SecureStore.getItemAsync).mockResolvedValue(JSON.stringify({
+    token: tokenFor("ARCHITECT"), email: "architect@example.com",
+  }));
+  await act(async () => { root = create(<RootLayout />); });
+  expect(availableScreens()).toEqual(["terrain-files"]);
+});
+
+it("allows no protected screens for an unrecognized role", async () => {
+  jest.mocked(authApi.login).mockResolvedValue({ token: tokenFor("UNKNOWN") });
+  await signInThroughForm();
+  expect(availableScreens()).toEqual([]);
+  expect(root.root.findAllByType(TextInput)).toHaveLength(2);
+  expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+});
+
+it("mounts no protected screens while the saved session is loading", async () => {
+  let resolveSession: (value: string | null) => void = () => {};
+  jest.mocked(SecureStore.getItemAsync).mockReturnValue(new Promise((resolve) => { resolveSession = resolve; }));
+  await act(async () => { root = create(<RootLayout />); });
+  expect(availableScreens()).toEqual([]);
+  await act(async () => {
+    resolveSession(JSON.stringify({ token: tokenFor("ARCHITECT"), email: "architect@example.com" }));
   });
-  expect(mockRouter.replace).toHaveBeenCalledTimes(1);
-  expect(mockRouter.replace).toHaveBeenCalledWith("/");
+  expect(availableScreens()).toEqual(["terrain-files"]);
 });

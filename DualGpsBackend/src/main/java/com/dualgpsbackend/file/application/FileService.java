@@ -25,7 +25,15 @@ public class FileService {
     private final FileAssetRepository fileAssetRepository;
     private final UserRepository userRepository;
 
-    public UploadedFileDTO upload (UploadFileCommandDTO command) throws IOException{
+    public UploadedFileDTO upload(UploadFileCommandDTO command) throws IOException {
+        return upload(command, false);
+    }
+
+    UploadedFileDTO uploadTerrain(UploadFileCommandDTO command) throws IOException {
+        return upload(command, true);
+    }
+
+    private UploadedFileDTO upload(UploadFileCommandDTO command, boolean terrain) throws IOException {
         validate(command);
 
         User owner = userRepository.findByEmail(command.ownerEmail()).orElseThrow(
@@ -43,6 +51,7 @@ public class FileService {
         asset.setContentType(command.contentType());
         asset.setSize(command.size());
         asset.setPurpose(command.purpose());
+        asset.setTerrain(terrain);
         asset.setOwner(owner);
         asset.setCreatedAt(Instant.now());
 
@@ -61,18 +70,12 @@ public class FileService {
         log.info("Upload completed: fileId={}, ownerId={}, purpose={}, size={}",
                 saved.getId(), owner.getId(), saved.getPurpose(), saved.getSize());
 
-        return new UploadedFileDTO(
-                saved.getId(),
-                saved.getOriginalFilename(),
-                saved.getContentType(),
-                saved.getSize(),
-                saved.getPurpose(),
-                saved.getCreatedAt()
-        );
+        return UploadedFileDTO.from(saved);
     }
 
     public FileDownloadDTO download(UUID id, String authEmail){
         FileAsset asset = fileAssetRepository.findByIdAndOwner_Email(id,authEmail)
+                .filter(file -> !Boolean.TRUE.equals(file.getTerrain()))
                 .orElseThrow(FileAssetNotFoundException::new);
         String storageKey = asset.getStorageKey();
 
@@ -85,7 +88,7 @@ public class FileService {
                 );
     }
 
-    private void validate(UploadFileCommandDTO command){
+    static void validate(UploadFileCommandDTO command){
         if(command == null){
             throw new IllegalArgumentException("Upload data required");
         }

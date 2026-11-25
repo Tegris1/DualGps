@@ -37,3 +37,6 @@ dualGpsFrontend/node_modules/
 
 .env
 /docs
+
+# Thesis documents and supporting materials
+/opracowanie/

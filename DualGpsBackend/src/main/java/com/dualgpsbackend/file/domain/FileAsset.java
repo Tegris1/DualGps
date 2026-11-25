@@ -35,6 +35,9 @@ public class FileAsset {
     @Column(nullable = false)
     private FilePurpose purpose;
 
+    // Legacy file rows have no terrain flag.
+    private Boolean terrain;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User owner;
 

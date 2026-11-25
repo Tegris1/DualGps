@@ -1,10 +1,7 @@
 package com.dualgpsbackend.file.application;
 
+import com.dualgpsbackend.file.domain.FileAsset;
 import com.dualgpsbackend.file.domain.FilePurpose;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -17,4 +14,14 @@ public record UploadedFileDTO(
         FilePurpose purpose,
         Instant createdAt
 ) {
+    static UploadedFileDTO from(FileAsset asset) {
+        return new UploadedFileDTO(
+                asset.getId(),
+                asset.getOriginalFilename(),
+                asset.getContentType(),
+                asset.getSize(),
+                asset.getPurpose(),
+                asset.getCreatedAt()
+        );
+    }
 }
