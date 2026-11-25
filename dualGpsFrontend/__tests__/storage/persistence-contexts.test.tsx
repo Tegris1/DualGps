@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, jest } from "@jest/globals";
+import { Buffer } from "buffer";
 import { act } from "react";
 
 import { authApi } from "../../features/auth/api/auth-api";
@@ -16,6 +17,9 @@ jest.mock("../../features/auth/api/auth-api", () => ({
 const { create } = require("react-test-renderer");
 const AUTH_KEY = "dualgps.auth-session";
 const SETTINGS_KEY = "dualgps.asg-eupos-settings";
+const OPERATOR_CLAIMS = Buffer.from(JSON.stringify({ roles: ["OPERATOR"] })).toString("base64").replace(/=+$/, "");
+const STORED_TOKEN = "header." + OPERATOR_CLAIMS + ".stored";
+const NEW_TOKEN = "header." + OPERATOR_CLAIMS + ".new";
 let root: ReturnType<typeof create>;
 let auth!: ReturnType<typeof useAuth>;
 let settings!: ReturnType<typeof useEuposSettings>;
@@ -56,7 +60,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.mocked(authApi.login).mockResolvedValue({ token: "new-token" });
+  jest.mocked(authApi.login).mockResolvedValue({ token: NEW_TOKEN });
   sessionStorage = memoryStorage();
   localStorage = memoryStorage();
   Object.defineProperty(globalThis, "window", { configurable: true, value: { sessionStorage, localStorage } });
@@ -74,10 +78,11 @@ afterAll(() => {
 });
 
 it("restores existing keys, keeps authentication in session storage, and preserves settings on sign-out", async () => {
-  sessionStorage.values.set(AUTH_KEY, JSON.stringify({ token: "stored-token", email: "operator@example.com" }));
+  sessionStorage.values.set(AUTH_KEY, JSON.stringify({ token: STORED_TOKEN, email: "operator@example.com" }));
   localStorage.values.set(SETTINGS_KEY, JSON.stringify({ username: "receiver", useTls: true }));
   await render();
-  expect(auth.token).toBe("stored-token");
+  expect(auth.token).toBe(STORED_TOKEN);
+  expect(auth.user?.role).toBe("OPERATOR");
   expect(auth.isLoadingUser).toBe(false);
   expect(settings.settings).toEqual({ ...DEFAULT_EUPOS_SETTINGS, username: "receiver", useTls: true });
 
@@ -87,7 +92,7 @@ it("restores existing keys, keeps authentication in session storage, and preserv
   expect(localStorage.values.has(SETTINGS_KEY)).toBe(true);
   await act(async () => { expect(await auth.signIn(" Operator@Example.com ", "password")).toBeNull(); });
   expect(authApi.login).toHaveBeenCalledWith({ email: "operator@example.com", password: "password" });
-  expect(JSON.parse(sessionStorage.values.get(AUTH_KEY)!)).toEqual({ token: "new-token", email: "operator@example.com" });
+  expect(JSON.parse(sessionStorage.values.get(AUTH_KEY)!)).toEqual({ token: NEW_TOKEN, email: "operator@example.com" });
   expect(localStorage.values.has(AUTH_KEY)).toBe(false);
 });
 

@@ -2,6 +2,7 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 
 import { AuthApiError } from "./auth-errors";
+import type { UserRole } from "../session-role";
 
 export { AuthApiError } from "./auth-errors";
 
@@ -39,10 +40,10 @@ export type RegisteredUser = {
   loyaltyProgram: boolean;
   cancelledReservationsCount: number;
   reservationBlockedUntil: string | null;
-  role: "USER" | "EMPLOYEE" | "SECRETARY" | "ADMIN";
+  role: UserRole;
 };
 
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   const isAndroidEmulator = Platform.OS === "android" && !Device.isDevice;
   const apiUrl = (
     isAndroidEmulator

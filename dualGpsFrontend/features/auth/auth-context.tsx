@@ -1,5 +1,7 @@
 import { authApi } from "@/features/auth/api/auth-api";
+import { AuthApiError } from "@/features/auth/api/auth-errors";
 import { toAuthFailure, type AuthFailure } from "@/features/auth/errors";
+import { getSessionRole, type UserRole } from "@/features/auth/session-role";
 import { createSecureStorage } from "@/lib/secure-storage";
 import {
   createContext,
@@ -14,12 +16,15 @@ const authSessionStorage = createSecureStorage("session");
 
 type AuthUser = {
   email: string;
+  role: UserRole;
 };
 
 type StoredSession = {
   token: string;
   email: string;
 };
+
+type AuthSession = StoredSession & { role: UserRole };
 
 type AuthContextType = {
   user: AuthUser | null;
@@ -36,7 +41,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function parseStoredSession(value: string | null): StoredSession | null {
+function parseStoredSession(value: string | null): AuthSession | null {
   if (!value) {
     return null;
   }
@@ -45,7 +50,8 @@ function parseStoredSession(value: string | null): StoredSession | null {
     const session = JSON.parse(value) as Partial<StoredSession>;
 
     if (typeof session.token === "string" && typeof session.email === "string") {
-      return { token: session.token, email: session.email };
+      const role = getSessionRole(session.token);
+      if (role) return { token: session.token, email: session.email, role };
     }
   } catch {
     // Invalid stored data is treated as a signed-out session.
@@ -55,8 +61,7 @@ function parseStoredSession(value: string | null): StoredSession | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   useEffect(() => {
@@ -66,8 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const session = parseStoredSession(storedValue);
 
         if (session) {
-          setToken(session.token);
-          setUser({ email: session.email });
+          setSession(session);
         } else if (storedValue) {
           await authSessionStorage.removeItem(AUTH_SESSION_KEY);
         }
@@ -83,29 +87,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string): Promise<AuthFailure | null> => {
     const normalizedEmail = email.trim().toLowerCase();
-    let session: StoredSession;
+    let session: AuthSession;
 
     try {
       const response = await authApi.login({
         email: normalizedEmail,
         password,
       });
+      const role = getSessionRole(response.token);
+      if (!role) throw new AuthApiError("invalid-response");
       session = {
         token: response.token,
         email: normalizedEmail,
+        role,
       };
     } catch (error) {
       return toAuthFailure(error);
     }
 
     try {
-      await authSessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+      const storedSession: StoredSession = { token: session.token, email: session.email };
+      await authSessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(storedSession));
     } catch (cause) {
       return { kind: "persistence", cause };
     }
 
-    setToken(session.token);
-    setUser({ email: session.email });
+    setSession(session);
     return null;
   };
 
@@ -130,8 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    setToken(null);
-    setUser(null);
+    setSession(null);
 
     try {
       await authSessionStorage.removeItem(AUTH_SESSION_KEY);
@@ -140,9 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const user = session ? { email: session.email, role: session.role } : null;
+
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoadingUser, signUp, signIn, signOut }}
+      value={{ user, token: session?.token ?? null, isLoadingUser, signUp, signIn, signOut }}
     >
       {children}
     </AuthContext.Provider>

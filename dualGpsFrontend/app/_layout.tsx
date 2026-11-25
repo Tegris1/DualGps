@@ -1,19 +1,15 @@
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
-import { GpsProvider } from "@/features/gps/gps-context";
 import { OfflineSessionProvider, useOfflineSession } from "@/features/auth/offline-session-context";
+import type { UserRole } from "@/features/auth/session-role";
 import { TerrainProjectProvider, useTerrainProject } from "@/features/terrain/project-context";
-import {
-  Stack,
-  useNavigationContainerRef,
-  useRouter,
-  useSegments,
-} from "expo-router";
-import { useEffect } from "react";
+import { terrainColors } from "@/features/terrain/theme";
+import { Stack } from "expo-router";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 const OFFLINE_MODE = process.env.EXPO_PUBLIC_OFFLINE_MODE === "true";
 
-function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false }:
-  { offlineSignedIn?: boolean; hasCurrentTerrain?: boolean }) {
+function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false, role = null }:
+  { offlineSignedIn?: boolean; hasCurrentTerrain?: boolean; role?: UserRole | null }) {
   return (
     <Stack>
       <Stack.Protected guard={OFFLINE_MODE && !offlineSignedIn}>
@@ -28,43 +24,18 @@ function AppNavigator({ offlineSignedIn = false, hasCurrentTerrain = false }:
       <Stack.Protected guard={OFFLINE_MODE && offlineSignedIn}>
         <Stack.Screen name="terrain-preview" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!OFFLINE_MODE}>
+      <Stack.Protected guard={!OFFLINE_MODE && role === null}>
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!OFFLINE_MODE && role === "ARCHITECT"}>
+        <Stack.Screen name="terrain-files" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!OFFLINE_MODE && (role === "OPERATOR" || role === "ADMIN")}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="auth" />
         <Stack.Screen name="modal" />
       </Stack.Protected>
     </Stack>
   );
-}
-
-function RouteGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { user, isLoadingUser } = useAuth();
-  const segments = useSegments();
-
-  const navigationRef = useNavigationContainerRef();
-
-  useEffect(() => {
-    const inAuthGroup = segments[0] === "auth";
-    const redirectToAuth = () => {
-      if (navigationRef.isReady() && !user && !inAuthGroup && !isLoadingUser) {
-        router.replace("/auth");
-      } else if (
-        navigationRef.isReady() &&
-        user &&
-        inAuthGroup &&
-        !isLoadingUser
-      ) {
-        router.replace("/");
-      }
-    };
-
-    const unsubscribe = navigationRef.addListener("ready", redirectToAuth);
-    redirectToAuth();
-
-    return unsubscribe;
-  }, [isLoadingUser, navigationRef, router, segments, user]);
-  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -72,7 +43,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <GpsApp />
+      <OnlineApp />
     </AuthProvider>
   );
 }
@@ -88,16 +59,20 @@ function OfflineNavigation({ signedIn }: { signedIn: boolean }) {
   return <AppNavigator offlineSignedIn={signedIn} hasCurrentTerrain={!!currentTerrain} />;
 }
 
-function GpsApp() {
-  const { user } = useAuth();
+function OnlineApp() {
+  const { user, isLoadingUser } = useAuth();
 
-  return (
-    <GpsProvider key={user?.email ?? "signed-out"}>
-      <TerrainProjectProvider>
-        <RouteGuard>
-          <AppNavigator />
-        </RouteGuard>
-      </TerrainProjectProvider>
-    </GpsProvider>
-  );
+  if (isLoadingUser) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={terrainColors.primary} accessibilityLabel="Restoring session" />
+      </View>
+    );
+  }
+
+  return <AppNavigator role={user?.role ?? null} />;
 }
+
+const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: terrainColors.background },
+});

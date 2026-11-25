@@ -11,7 +11,8 @@ The project combines mobile development, hardware communication, binary stream p
 - **RTK correction streaming:** connects directly to a configurable NTRIP caster, sends the receiver's GGA position, and forwards RTCM correction bytes over Bluetooth. ASG-EUPOS settings are provided as defaults.
 - **Diagnostics:** raw serial messages, connection state, correction byte counters, CRC-checked RTCM frames, and the latest RTCM message type.
 - **Authentication:** registration and JWT login through the backend, with native session persistence using Expo SecureStore.
-- **Backend file storage:** authenticated uploads and owner-restricted downloads, with metadata in PostgreSQL. These endpoints are not yet connected to a frontend file management screen.
+- **Terrain file management:** architects sign in to an account-owned library where they can add, replace, and delete .glb files. Operators and admins sign in to the GNSS and IMU dashboard.
+- **Backend file storage:** authenticated uploads and owner-restricted downloads, with metadata in PostgreSQL.
 
 RTK uses correction data to improve a receiver's positioning solution. NTRIP delivers those corrections over a network; NMEA carries receiver position messages, and RTCM carries correction data.
 
