@@ -1,8 +1,34 @@
 # Dual GPS
 
-A mobile GNSS companion app with a Java backend. Dual GPS connects an Android phone to an external satellite positioning receiver over Bluetooth, displays live position data, and forwards network correction data to the receiver for RTK positioning.
+A prototype Android app for excavator operators. Dual GPS manages two GNSS receivers, forwards RTK corrections, and uses tilt readings to articulate the excavator in a 3D terrain view. A Java backend manages accounts and an architect's terrain file library.
 
-The project combines mobile development, hardware communication, binary stream processing, and a REST API backed by PostgreSQL.
+## App walkthrough
+
+### Operator dashboard
+
+The dashboard brings together the 3D excavator, GNSS and IMU status, and a terrain cross-section through the bucket edge. As the bucket moves, the cross-section and the height difference to the design surface update together.
+
+![Dual GPS operator dashboard with the excavator, terrain cross-section, height difference, and GNSS and IMU status](assets/screenshots/operator-dashboard.png)
+
+This dashboard screenshot uses replayed excavator motion and demo sensor status. The operator preview uses the terrain models bundled with the app.
+
+### GNSS and IMU setup
+
+Select a receiver slot, choose a Topcon or Kolida profile, and connect a paired Bluetooth Classic device. The ASG-EUPOS and Debug tabs provide NTRIP correction settings and diagnostics for the selected receiver.
+
+![Bluetooth settings with the two receiver slots, receiver profiles, and device picker](assets/screenshots/gnss-setup.png)
+
+In the IMU tab, assign discovered sensor UUIDs to the boom, stick, and bucket so the app can apply each tilt measurement to the corresponding joint.
+
+![IMU settings with assignments for the boom, stick, and bucket](assets/screenshots/imu-setup.png)
+
+The setup screenshots were taken on an emulator with the hardware disconnected.
+
+### Architect terrain files
+
+Architects use a dedicated screen to upload, replace, and delete GLB files in their account library.
+
+![Architect terrain file library with add, replace, and delete controls](assets/screenshots/architect-files.png)
 
 ## Features
 
@@ -22,6 +48,7 @@ RTK uses correction data to improve a receiver's positioning solution. NTRIP del
 | ------------------------------ | -------------------------------------------------------------------------- |
 | Mobile frontend                | TypeScript, React 19.1, React Native 0.81.5, Expo SDK 54                   |
 | Navigation and UI              | Expo Router, React Native Paper                                            |
+| Terrain visualization          | Three.js, React Three Fiber, Expo GL, GLB                                   |
 | Hardware and networking        | Bluetooth Classic, native TCP/TLS sockets, NMEA parsing, RTCM 3 inspection |
 | Backend                        | Java 25, Spring Boot 4.1.1, Spring MVC, Spring Security                    |
 | Persistence and authentication | PostgreSQL 17, Spring Data JPA, JWT, BCrypt                                |
@@ -35,9 +62,10 @@ Versions reflect the repository's dependency manifests.
 flowchart LR
     Receiver[GNSS receiver] -->|Bluetooth: NMEA position| App[React Native app]
     App -->|Bluetooth: RTCM corrections| Receiver
+    Sensors[ESP32 IMU modules] -->|Bluetooth: tilt and sensor UUID| App
     App -->|TCP or TLS: GGA position| Caster[NTRIP caster / ASG-EUPOS]
     Caster -->|RTCM correction stream| App
-    App -->|HTTP: registration and login| API[Spring Boot API]
+    App -->|HTTP: accounts and terrain files| API[Spring Boot API]
     API --> DB[(PostgreSQL)]
     API --> Storage[Local file storage]
 ```
